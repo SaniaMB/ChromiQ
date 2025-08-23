@@ -1,0 +1,4 @@
+package io.github.saniamb.chromiq.core.service;
+
+public class ImageProcessingService {
+}
