@@ -1,4 +1,4 @@
-package io.github.saniamb.chromiq.input;
+package io.github.saniamb.chromiq.unit;
 import io.github.saniamb.chromiq.core.input.ImageInputHandler;
 import org.junit.jupiter.api.Test;
 
@@ -6,7 +6,6 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.IOError;
 import java.io.IOException;
 import java.nio.file.Files;
 
@@ -118,4 +117,27 @@ public class ImageHandlerTest {
         assertTrue(info.contains("20x30"));
         assertTrue(info.contains("ARGB"));
     }
+
+    @Test
+    void testLoadFromFile_convertsToARGB() throws IOException {
+        // Create a dummy NON-ARGB image
+        BufferedImage rgbImage = new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB);
+
+        // Write it to a temporary file
+        File tempFile = File.createTempFile("testRGB", ".png");
+        tempFile.deleteOnExit();
+        ImageIO.write(rgbImage, "png", tempFile);
+
+        // Load through ImageHandler (this should trigger convertToARGB inside)
+        BufferedImage loaded = handler.loadFromFile(tempFile.getAbsolutePath());
+
+        // Assertions
+        assertNotNull(loaded, "Loaded image should not be null");
+        assertEquals(
+                BufferedImage.TYPE_INT_ARGB,
+                loaded.getType(),
+                "Image should have been converted to ARGB"
+        );
+    }
+
 }

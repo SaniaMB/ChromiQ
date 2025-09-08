@@ -1,4 +1,4 @@
-package io.github.saniamb.chromiq.resources;
+package io.github.saniamb.chromiq.legacy;
 
 import javax.imageio.ImageIO;
 import java.awt.*;

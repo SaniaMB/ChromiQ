@@ -1,4 +1,4 @@
-package io.github.saniamb.chromiq.color;
+package io.github.saniamb.chromiq.unit;
 
 import io.github.saniamb.chromiq.core.color.models.ColorEntry;
 import org.junit.jupiter.api.Test;
