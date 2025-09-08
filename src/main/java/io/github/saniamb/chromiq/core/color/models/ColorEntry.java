@@ -258,9 +258,81 @@ public class ColorEntry {
         return t > 0.008856 ? Math.cbrt(t) : (7.787 * t + 16 / 116.0);
     }
 
+    // Add this method to your ColorEntry class
+
+    /**
+     * Creates a ColorEntry from LAB color space values.
+     * This is the reverse of getLAB() - converts LAB back to RGB.
+     *
+     * @param L Lightness (0-100)
+     * @param A Green-Red axis (-127 to +127, negative=green, positive=red)
+     * @param B Blue-Yellow axis (-127 to +127, negative=blue, positive=yellow)
+     * @return ColorEntry with RGB values calculated from LAB
+     * @throws IllegalArgumentException if LAB values are out of valid ranges
+     */
+    public static ColorEntry fromLAB(double L, double A, double B) {
+        // Validate LAB ranges
+        if (L < 0 || L > 100) {
+            throw new IllegalArgumentException("L (Lightness) must be between 0 and 100, got: " + L);
+        }
+        if (A < -127 || A > 127) {
+            throw new IllegalArgumentException("A (Green-Red) must be between -127 and 127, got: " + A);
+        }
+        if (B < -127 || B > 127) {
+            throw new IllegalArgumentException("B (Blue-Yellow) must be between -127 and 127, got: " + B);
+        }
+
+        // LAB → XYZ conversion
+        double fy = (L + 16) / 116.0;
+        double fx = A / 500.0 + fy;
+        double fz = fy - B / 200.0;
+
+        // Reverse the pivot function used in getLAB()
+        double X = reversePivotXYZ(fx) * 0.95047;  // D65 white point
+        double Y = reversePivotXYZ(fy) * 1.00000;
+        double Z = reversePivotXYZ(fz) * 1.08883;
+
+        // XYZ → RGB conversion (reverse of the matrix used in getLAB())
+        double r = X *  3.2406 + Y * -1.5372 + Z * -0.4986;
+        double g = X * -0.9689 + Y *  1.8758 + Z *  0.0415;
+        double b = X *  0.0557 + Y * -0.2040 + Z *  1.0570;
+
+        // Reverse the gamma correction
+        r = reversePivotRGB(r);
+        g = reversePivotRGB(g);
+        b = reversePivotRGB(b);
+
+        // Convert to 0-255 range and clamp to valid RGB values
+        int red   = clampToRGBRange(r * 255);
+        int green = clampToRGBRange(g * 255);
+        int blue  = clampToRGBRange(b * 255);
+
+        return new ColorEntry(red, green, blue);
+    }
+
+    /**
+     * Reverses the XYZ pivot function used in getLAB()
+     */
+    private static double reversePivotXYZ(double t) {
+        double t3 = t * t * t;
+        return t3 > 0.008856 ? t3 : (t - 16.0/116.0) / 7.787;
+    }
+
+    /**
+     * Reverses the RGB pivot function used in getLAB()
+     */
+    private static double reversePivotRGB(double c) {
+        return c <= 0.04045 ? c * 12.92 : Math.pow((c + 0.055) / 1.055, 1.0 / 2.4);
+    }
+
+    /**
+     * Clamps a double value to valid RGB range (0-255)
+     */
+    private static int clampToRGBRange(double value) {
+        return Math.max(0, Math.min(255, (int) Math.round(value)));
+    }
+
     // --- Object Methods ---
-
-
     @Override
     public boolean equals(Object obj){
         if (this == obj) return true;

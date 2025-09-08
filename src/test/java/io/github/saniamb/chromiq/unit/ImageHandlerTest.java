@@ -128,6 +128,7 @@ public class ImageHandlerTest {
         tempFile.deleteOnExit();
         ImageIO.write(rgbImage, "png", tempFile);
 
+
         // Load through ImageHandler (this should trigger convertToARGB inside)
         BufferedImage loaded = handler.loadFromFile(tempFile.getAbsolutePath());
 
