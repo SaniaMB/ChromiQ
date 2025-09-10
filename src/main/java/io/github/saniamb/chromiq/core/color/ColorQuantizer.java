@@ -32,7 +32,7 @@ public class ColorQuantizer {
      * Maximum number of color groups to prevent performance issues.
      * Even complex images rarely need more than 100 distinct color groups.
      */
-    private static final int MAX_COLOR_GROUPS = 100;
+    private static final int MAX_COLOR_GROUPS = 500;
 
     /**
      * Represents a group of similar colors that have been quantized together.
@@ -178,7 +178,7 @@ public class ColorQuantizer {
      * @param deltaEThreshold Maximum color difference to group together (default: 3.0)
      * @return List of ColorGroups, sorted by importance (total pixel count)
      */
-    public List<ColorGroup> quantizeColors(List<ColorExtractor.ColorCount> extractedColors,
+    /*public List<ColorGroup> quantizeColors(List<ColorExtractor.ColorCount> extractedColors,
                                            double deltaEThreshold) {
 
         if (extractedColors == null || extractedColors.isEmpty()) {
@@ -215,6 +215,85 @@ public class ColorQuantizer {
             // Safety limit to prevent performance issues
             if (colorGroups.size() >= MAX_COLOR_GROUPS) {
                 Logger.info("Reached maximum color groups limit: " + MAX_COLOR_GROUPS);
+                break;
+            }
+        }
+
+        // Sort groups by importance (total pixel count)
+        Collections.sort(colorGroups);
+
+        long processingTime = System.currentTimeMillis() - startTime;
+
+        Logger.info(String.format("Color quantization complete: %d groups created in %dms",
+                colorGroups.size(), processingTime));
+
+        // Log quantization effectiveness
+        int originalColors = extractedColors.size();
+        int finalGroups = colorGroups.size();
+        double compressionRatio = (originalColors > 0) ? (double) finalGroups / originalColors : 0;
+
+        Logger.info(String.format("Quantization ratio: %d → %d colors (%.1f%% of original)",
+                originalColors, finalGroups, compressionRatio * 100));
+
+        return colorGroups;
+    }*/
+    /**
+     * Main quantization method: Groups similar colors together using Delta E distance.
+     * UPDATED VERSION - handles complex images better
+     */
+    public List<ColorGroup> quantizeColors(List<ColorExtractor.ColorCount> extractedColors,
+                                           double deltaEThreshold) {
+
+        if (extractedColors == null || extractedColors.isEmpty()) {
+            Logger.info("No colors to quantize - returning empty list");
+            return new ArrayList<>();
+        }
+
+        Logger.info(String.format("Starting color quantization: %d input colors, Delta E threshold: %.1f",
+                extractedColors.size(), deltaEThreshold));
+
+        long startTime = System.currentTimeMillis();
+        List<ColorGroup> colorGroups = new ArrayList<>();
+
+        // Process colors in order of frequency (most common first)
+        int processedColors = 0;
+        for (ColorExtractor.ColorCount colorCount : extractedColors) {
+            boolean addedToExistingGroup = false;
+
+            // Try to find an existing group this color belongs to
+            for (ColorGroup group : colorGroups) {
+                double distance = calculateDeltaE(colorCount.getColor(), group.getRepresentativeColor());
+
+                if (distance <= deltaEThreshold) {
+                    group.addColor(colorCount);
+                    addedToExistingGroup = true;
+                    break; // Add to first matching group only
+                }
+            }
+
+            // If no suitable group found, create a new one
+            if (!addedToExistingGroup) {
+                colorGroups.add(new ColorGroup(colorCount));
+            }
+
+            processedColors++;
+
+            // Safety limit to prevent performance issues - but log what we're missing
+            if (colorGroups.size() >= MAX_COLOR_GROUPS) {
+                int remainingColors = extractedColors.size() - processedColors;
+                double remainingCoverage = extractedColors.subList(processedColors, extractedColors.size())
+                        .stream()
+                        .mapToDouble(ColorExtractor.ColorCount::getPercentage)
+                        .sum();
+
+                Logger.info(String.format("Reached maximum color groups limit: %d (processed %d/%d colors, %.2f%% coverage remaining)",
+                        MAX_COLOR_GROUPS, processedColors, extractedColors.size(), remainingCoverage));
+
+                // If we're missing significant coverage, warn the user
+                if (remainingCoverage > 10.0) {
+                    Logger.info("WARNING: Significant color coverage (" + String.format("%.1f%%", remainingCoverage) +
+                            ") was not processed. Consider using a higher Delta E threshold or processing fewer initial colors.");
+                }
                 break;
             }
         }
