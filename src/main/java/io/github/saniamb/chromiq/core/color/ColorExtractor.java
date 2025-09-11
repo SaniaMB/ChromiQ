@@ -27,7 +27,7 @@ public class ColorExtractor {
         private int count;
         private double percentage; // Calculated when needed
 
-        protected ColorCount(ColorEntry color) {
+        public ColorCount(ColorEntry color) {
             this.color = color;
             this.count = 0;
             this.percentage = 0.0;
