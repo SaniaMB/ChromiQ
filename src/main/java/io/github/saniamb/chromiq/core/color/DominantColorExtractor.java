@@ -34,8 +34,8 @@ public class DominantColorExtractor {
     private static final int MIN_COLORS_FOR_CLUSTERING = 15;
 
     // Our worker components
-    private final ColorExtractor colorExtractor;
-    private final ColorClusterer colorClusterer;
+    private static ColorExtractor colorExtractor = null;
+    private static ColorClusterer colorClusterer = null;
 
     /**
      * Represents a dominant color with its importance in the image.
@@ -74,8 +74,8 @@ public class DominantColorExtractor {
      * Constructor - creates the extractor with default components.
      */
     public DominantColorExtractor() {
-        this.colorExtractor = new ColorExtractor();
-        this.colorClusterer = new ColorClusterer();
+        colorExtractor = new ColorExtractor();
+        colorClusterer = new ColorClusterer();
     }
 
     /**
@@ -85,7 +85,7 @@ public class DominantColorExtractor {
      * @return List of dominant colors, sorted by importance
      * @throws IllegalArgumentException if image is null
      */
-    public List<DominantColor> extractDominantColors(BufferedImage image) {
+    public static List<DominantColor> extractDominantColors(BufferedImage image) {
         return extractDominantColors(image, DEFAULT_MAX_COLORS);
     }
 
@@ -97,7 +97,7 @@ public class DominantColorExtractor {
      * @return List of dominant colors, sorted by importance
      * @throws IllegalArgumentException if image is null or maxColors is invalid
      */
-    public List<DominantColor> extractDominantColors(BufferedImage image, int maxColors) {
+    public static List<DominantColor> extractDominantColors(BufferedImage image, int maxColors) {
         if (image == null) {
             throw new IllegalArgumentException("Image cannot be null");
         }
@@ -156,7 +156,7 @@ public class DominantColorExtractor {
      * Determines if we should return all colors without clustering.
      * This happens when the image naturally has few distinct colors.
      */
-    private boolean shouldUseAllColors(List<ColorExtractor.ColorCount> allColors, int maxColors) {
+    private static boolean shouldUseAllColors(List<ColorExtractor.ColorCount> allColors, int maxColors) {
         // If image has fewer colors than requested, no point in clustering
         if (allColors.size() <= maxColors) {
             return true;
@@ -175,7 +175,7 @@ public class DominantColorExtractor {
      * Converts raw color counts to DominantColor format without clustering.
      * Used for images that naturally have few colors.
      */
-    private List<DominantColor> convertToNaturalPalette(List<ColorExtractor.ColorCount> colorCounts, int maxColors) {
+    private static List<DominantColor> convertToNaturalPalette(List<ColorExtractor.ColorCount> colorCounts, int maxColors) {
         List<DominantColor> result = new ArrayList<>();
 
         // Take up to maxColors, they're already sorted by frequency
@@ -192,7 +192,7 @@ public class DominantColorExtractor {
     /**
      * Uses k-means clustering to find dominant colors in complex images.
      */
-    private List<DominantColor> clusterAndExtract(List<ColorExtractor.ColorCount> allColors, int maxColors) {
+    private static List<DominantColor> clusterAndExtract(List<ColorExtractor.ColorCount> allColors, int maxColors) {
         // Use k-means clustering to group similar colors
         List<ColorClusterer.ColorCluster> clusters = colorClusterer.clusterColors(allColors, maxColors);
 
