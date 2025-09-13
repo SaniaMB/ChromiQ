@@ -505,22 +505,26 @@ async function uploadImage(file) {
     }
 }
 
-    function displayImage(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                uploadedImage.src = e.target.result;
-                uploadedImage.onload = () => {
-                    imageCanvas.width = uploadedImage.naturalWidth;
-                    imageCanvas.height = uploadedImage.naturalHeight;
-                    canvasCtx.drawImage(uploadedImage, 0, 0);
-                    imageDisplay.style.display = 'block';
-                    resolve();
-                };
+   function displayImage(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            uploadedImage.src = e.target.result;
+            uploadedImage.onload = () => {
+                // *** FIX: Use server-provided dimensions for the hidden canvas ***
+                imageCanvas.width = serverImageWidth || uploadedImage.naturalWidth;
+                imageCanvas.height = serverImageHeight || uploadedImage.naturalHeight;
+
+                // Draw the image onto the canvas, scaling it to the correct size
+                canvasCtx.drawImage(uploadedImage, 0, 0, imageCanvas.width, imageCanvas.height);
+
+                imageDisplay.style.display = 'block';
+                resolve();
             };
-            reader.readAsDataURL(file);
-        });
-    }
+        };
+        reader.readAsDataURL(file);
+    });
+}
 
     function displayPalette(palette) {
         paletteGrid.innerHTML = '';
@@ -680,12 +684,16 @@ async function uploadImage(file) {
      * [DEFINITIVE FIX] Calculates the precise pixel coordinates on the original image,
      * accounting for CSS scaling (`object-fit: contain`) and letterboxing.
      */
-   function getScaledCoordinates(event) {
+  function getScaledCoordinates(event) {
     const img = uploadedImage;
     const rect = img.getBoundingClientRect();
 
+    // Use the image dimensions from the server for all calculations.
+    const imageWidth = serverImageWidth || img.naturalWidth;
+    const imageHeight = serverImageHeight || img.naturalHeight;
+
     // Aspect ratios
-    const imgRatio = img.naturalWidth / img.naturalHeight;
+    const imgRatio = imageWidth / imageHeight;
     const elemRatio = img.clientWidth / img.clientHeight;
 
     let renderedHeight, renderedWidth;
@@ -710,24 +718,20 @@ async function uploadImage(file) {
         return { actualX: null, actualY: null };
     }
 
-    // Scale factors
-    const scaleX = img.naturalWidth / renderedWidth;
-    const scaleY = img.naturalHeight / renderedHeight;
+    // Scale factors using server dimensions
+    const scaleX = imageWidth / renderedWidth;
+    const scaleY = imageHeight / renderedHeight;
 
-    // Convert to image coords (floor to avoid overshoot)
+    // Convert to image coords and clamp to server dimensions
     let actualX = Math.floor(x * scaleX);
     let actualY = Math.floor(y * scaleY);
 
-    // ✅ Clamp to server dimensions, not just browser natural size
-    const maxWidth = serverImageWidth ?? img.naturalWidth;
-const maxHeight = serverImageHeight ?? img.naturalHeight;
+    actualX = Math.max(0, Math.min(imageWidth - 1, actualX));
+    actualY = Math.max(0, Math.min(imageHeight - 1, actualY));
 
-actualX = Math.max(0, Math.min(maxWidth - 1, Math.floor(x * scaleX)));
-actualY = Math.max(0, Math.min(maxHeight - 1, Math.floor(y * scaleY)));
 
     return { actualX, actualY };
 }
-
 
     function copyToClipboard(event, text) {
         event.stopPropagation();
