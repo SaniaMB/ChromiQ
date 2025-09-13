@@ -371,12 +371,11 @@
         </div>
     </div>
 </div>
-
 <script>
     // Global variables
     let currentPalette = null;
     let selectedColorIndex = null;
-    let isMouseOverImage = false; // MODIFIED: Added flag for reliable hover tracking
+    let isMouseOverImage = false;
 
     // DOM elements
     const uploadSection = document.getElementById('uploadSection');
@@ -390,7 +389,7 @@
     const paletteInfo = document.getElementById('paletteInfo');
     const messageArea = document.getElementById('messageArea');
     const clickInstruction = document.getElementById('clickInstruction');
-    const resetButton = document.getElementById('resetButton'); // NEW: Reset button element
+    const resetButton = document.getElementById('resetButton');
 
     // Canvas and Color Picker elements
     const imageCanvas = document.getElementById('imageCanvas');
@@ -412,10 +411,9 @@
         imageContainer.addEventListener('mouseenter', handleMouseEnterImage);
         imageContainer.addEventListener('mouseleave', handleMouseLeaveImage);
 
-        resetButton.addEventListener('click', resetApp); // NEW: Event listener for reset button
+        resetButton.addEventListener('click', resetApp);
     }
 
-    // NEW: Function to reset the application to its initial state
     function resetApp() {
         mainContent.style.display = 'none';
         imageDisplay.style.display = 'none';
@@ -423,7 +421,7 @@
         uploadSection.style.display = 'block';
 
         uploadedImage.src = '';
-        imageInput.value = ''; // Clear file input
+        imageInput.value = '';
         paletteGrid.innerHTML = '';
         currentPalette = null;
         selectedColorIndex = null;
@@ -432,14 +430,13 @@
     }
 
     function handleMouseEnterImage(event) {
-        isMouseOverImage = true; // MODIFIED: Set flag
-        showColorPreview();
+        isMouseOverImage = true;
         handleImageHover(event);
         imageContainer.addEventListener('mousemove', handleImageHover);
     }
 
     function handleMouseLeaveImage() {
-        isMouseOverImage = false; // MODIFIED: Unset flag
+        isMouseOverImage = false;
         hideColorPreview();
         imageContainer.removeEventListener('mousemove', handleImageHover);
     }
@@ -466,30 +463,47 @@
         uploadSection.classList.remove('dragover');
     }
 
-    async function uploadImage(file) {
-        showLoading('Uploading image and extracting colors...');
-        selectedColorIndex = null;
+  // Store server-side dimensions after upload
+// keep these global
+let serverImageWidth = null;
+let serverImageHeight = null;
 
-        try {
-            const formData = new FormData();
-            formData.append('image', file);
-            const response = await fetch(`${API_BASE}/upload`, { method: 'POST', body: formData });
-            const result = await response.json();
+async function uploadImage(file) {
+    showLoading('Uploading image and extracting colors...');
+    selectedColorIndex = null;
 
-            if (result.success) {
-                await displayImage(file);
-                displayPalette(result.palette);
-                currentPalette = result.palette;
-                showSuccess(`Successfully extracted ${result.palette.size} colors`);
-                uploadSection.style.display = 'none';
-                mainContent.style.display = 'grid';
-            } else {
-                showError(result.message || 'Failed to upload image');
-            }
-        } catch (error) {
-            showError('Error uploading image: ' + error.message);
+    try {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await fetch(`${API_BASE}/upload`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // ✅ store backend’s actual dimensions
+            serverImageWidth = result.imageWidth;
+            serverImageHeight = result.imageHeight;
+
+            await displayImage(file);
+            displayPalette(result.palette);
+            currentPalette = result.palette;
+
+            showSuccess(`Successfully extracted ${result.palette.size} colors`);
+            uploadSection.style.display = 'none';
+            mainContent.style.display = 'grid';
+
+            console.log("Server dimensions:", serverImageWidth, serverImageHeight);
+        } else {
+            showError(result.message || 'Failed to upload image');
         }
+    } catch (error) {
+        showError('Error uploading image: ' + error.message);
     }
+}
 
     function displayImage(file) {
         return new Promise((resolve) => {
@@ -555,21 +569,27 @@
     }
 
     async function handleImageClick(event) {
-        const { actualX, actualY } = getScaledCoordinates(event);
-        const payload = { x: actualX, y: actualY, exactMode: true };
+    const { actualX, actualY } = getScaledCoordinates(event);
+    if (actualX === null) return;
 
-        if (selectedColorIndex !== null) {
-            await apiCall(`${API_BASE}/colors/${selectedColorIndex}`, 'PUT', payload, (result) => {
-                showSuccess(`Replaced color`);
-            }, 'replace');
-            selectedColorIndex = null;
-            updateSelectionVisuals();
-        } else {
-            await apiCall(`${API_BASE}/add-from-image`, 'POST', payload, (result) => {
-                 showSuccess(`Added color ${result.addedColor.hex}`);
-            }, 'add');
-        }
+    console.log("Frontend coords:", actualX, actualY,
+        "Browser natural:", uploadedImage.naturalWidth, uploadedImage.naturalHeight,
+        "Server:", serverImageWidth, serverImageHeight);
+
+    const payload = { x: actualX, y: actualY, exactMode: true };
+
+    if (selectedColorIndex !== null) {
+        await apiCall(`${API_BASE}/colors/${selectedColorIndex}`, 'PUT', payload, (result) => {
+            showSuccess(`Replaced color`);
+        }, 'replace');
+        selectedColorIndex = null;
+        updateSelectionVisuals();
+    } else {
+        await apiCall(`${API_BASE}/add-from-image`, 'POST', payload, (result) => {
+            showSuccess(`Added color ${result.addedColor.hex}`);
+        }, 'add');
     }
+}
 
     async function removeColor(event, index) {
         event.stopPropagation();
@@ -602,13 +622,19 @@
     }
 
     function handleImageHover(event) {
-        // MODIFIED: Failsafe check using the flag
         if (!isMouseOverImage) {
             hideColorPreview();
             return;
         }
 
         const { actualX, actualY } = getScaledCoordinates(event);
+
+        if (actualX === null) {
+            hideColorPreview();
+            return;
+        }
+
+        showColorPreview();
 
         const zoom = 10;
         const pickerSize = pickerCanvas.width;
@@ -650,25 +676,58 @@
         colorPickerPreview.style.display = 'none';
     }
 
-    function getScaledCoordinates(event) {
-        const rect = uploadedImage.getBoundingClientRect();
-        const borderLeft = parseFloat(getComputedStyle(uploadedImage).borderLeftWidth) || 0;
-        const borderTop = parseFloat(getComputedStyle(uploadedImage).borderTopWidth) || 0;
+    /**
+     * [DEFINITIVE FIX] Calculates the precise pixel coordinates on the original image,
+     * accounting for CSS scaling (`object-fit: contain`) and letterboxing.
+     */
+   function getScaledCoordinates(event) {
+    const img = uploadedImage;
+    const rect = img.getBoundingClientRect();
 
-        const x = event.clientX - rect.left - borderLeft;
-        const y = event.clientY - rect.top - borderTop;
+    // Aspect ratios
+    const imgRatio = img.naturalWidth / img.naturalHeight;
+    const elemRatio = img.clientWidth / img.clientHeight;
 
-        const scaleX = uploadedImage.naturalWidth / uploadedImage.clientWidth;
-        const scaleY = uploadedImage.naturalHeight / uploadedImage.clientHeight;
-
-        const actualX = Math.round(x * scaleX);
-        const actualY = Math.round(y * scaleY);
-
-        return {
-            actualX: Math.max(0, Math.min(uploadedImage.naturalWidth - 1, actualX)),
-            actualY: Math.max(0, Math.min(uploadedImage.naturalHeight - 1, actualY))
-        };
+    let renderedHeight, renderedWidth;
+    if (imgRatio > elemRatio) {
+        renderedWidth = img.clientWidth;
+        renderedHeight = renderedWidth / imgRatio;
+    } else {
+        renderedHeight = img.clientHeight;
+        renderedWidth = renderedHeight * imgRatio;
     }
+
+    // Letterboxing offsets
+    const offsetX = (img.clientWidth - renderedWidth) / 2;
+    const offsetY = (img.clientHeight - renderedHeight) / 2;
+
+    // Mouse relative to rendered image
+    const x = event.clientX - rect.left - offsetX;
+    const y = event.clientY - rect.top - offsetY;
+
+    // Outside image → ignore
+    if (x < 0 || y < 0 || x > renderedWidth || y > renderedHeight) {
+        return { actualX: null, actualY: null };
+    }
+
+    // Scale factors
+    const scaleX = img.naturalWidth / renderedWidth;
+    const scaleY = img.naturalHeight / renderedHeight;
+
+    // Convert to image coords (floor to avoid overshoot)
+    let actualX = Math.floor(x * scaleX);
+    let actualY = Math.floor(y * scaleY);
+
+    // ✅ Clamp to server dimensions, not just browser natural size
+    const maxWidth = serverImageWidth ?? img.naturalWidth;
+const maxHeight = serverImageHeight ?? img.naturalHeight;
+
+actualX = Math.max(0, Math.min(maxWidth - 1, Math.floor(x * scaleX)));
+actualY = Math.max(0, Math.min(maxHeight - 1, Math.floor(y * scaleY)));
+
+    return { actualX, actualY };
+}
+
 
     function copyToClipboard(event, text) {
         event.stopPropagation();
@@ -688,9 +747,8 @@
     }
 
     function processNotificationQueue() {
-        if (isNotificationVisible || notificationQueue.length === 0) {
-            return;
-        }
+        if (isNotificationVisible || notificationQueue.length === 0) return;
+
         isNotificationVisible = true;
         const { message, type } = notificationQueue.shift();
         const msgDiv = document.createElement('div');
