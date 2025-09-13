@@ -6,6 +6,7 @@ import io.github.saniamb.chromiq.core.color.models.ColorEntry;
 import io.github.saniamb.chromiq.core.input.ImageInputHandler;
 import io.github.saniamb.chromiq.core.palette.PaletteManager;
 import io.github.saniamb.chromiq.core.utils.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,9 +26,8 @@ public class PaletteWorkflowController {
     private final DominantColorExtractor dominantColorExtractor;
     private final RegionalColorExtractor regionalColorExtractor;
 
-    private BufferedImage currentImage;
-    private String currentImageName;
-    private PaletteManager currentPalette;
+    @Autowired
+    private UserSessionManager userSessionManager;
 
     public PaletteWorkflowController() {
         this.imageInputHandler = new ImageInputHandler();
@@ -46,15 +46,17 @@ public class PaletteWorkflowController {
             }
 
             Logger.info("Starting palette workflow for: " + file.getOriginalFilename());
-            currentImage = imageInputHandler.loadFromStream(file.getInputStream());
-            currentImageName = file.getOriginalFilename();
+            BufferedImage currentImage = imageInputHandler.loadFromStream(file.getInputStream());
+            userSessionManager.setCurrentImage(currentImage);
+            String currentImageName = file.getOriginalFilename();
             Logger.info("Image processed: " + imageInputHandler.getImageInfo(currentImage));
 
             List<DominantColorExtractor.DominantColor> dominantColors =
                     dominantColorExtractor.extractDominantColors(currentImage, 10);
 
-            currentPalette = new PaletteManager(dominantColors);
+            PaletteManager currentPalette = new PaletteManager(dominantColors);
             currentPalette.setImageName(currentImageName);
+            userSessionManager.setPaletteManager(currentPalette);
 
             response.put("success", true);
             response.put("message", "Image uploaded and palette generated successfully");
@@ -76,6 +78,7 @@ public class PaletteWorkflowController {
     public ResponseEntity<Map<String, Object>> removeColor(@PathVariable int index) {
         Map<String, Object> response = new HashMap<>();
         try {
+            PaletteManager currentPalette = userSessionManager.getPaletteManager();
             if (currentPalette == null) {
                 response.put("success", false);
                 response.put("message", "No palette loaded. Upload an image first.");
@@ -107,6 +110,8 @@ public class PaletteWorkflowController {
     public ResponseEntity<Map<String, Object>> addColorFromImage(@RequestBody Map<String, Object> request) {
         Map<String, Object> response = new HashMap<>();
         try {
+            PaletteManager currentPalette = userSessionManager.getPaletteManager();
+            BufferedImage currentImage = userSessionManager.getCurrentImage();
             if (currentPalette == null || currentImage == null) {
                 response.put("success", false);
                 response.put("message", "No image/palette loaded. Upload an image first.");
@@ -151,6 +156,8 @@ public class PaletteWorkflowController {
     public ResponseEntity<Map<String, Object>> replaceColor(@PathVariable int index, @RequestBody Map<String, Object> request) {
         Map<String, Object> response = new HashMap<>();
         try {
+            PaletteManager currentPalette = userSessionManager.getPaletteManager();
+            BufferedImage currentImage = userSessionManager.getCurrentImage();
             if (currentPalette == null || currentImage == null) {
                 response.put("success", false);
                 response.put("message", "No image/palette loaded. Upload an image first.");
@@ -190,6 +197,7 @@ public class PaletteWorkflowController {
     @GetMapping("/current")
     public ResponseEntity<Map<String, Object>> getCurrentPalette() {
         Map<String, Object> response = new HashMap<>();
+        PaletteManager currentPalette = userSessionManager.getPaletteManager();
         if (currentPalette == null) {
             response.put("success", false);
             response.put("message", "No palette loaded");
@@ -197,17 +205,17 @@ public class PaletteWorkflowController {
         }
         response.put("success", true);
         response.put("palette", buildPaletteResponse());
+        BufferedImage currentImage = userSessionManager.getCurrentImage();
         if (currentImage != null) {
-            response.put("image", Map.of("name", currentImageName, "width", currentImage.getWidth(), "height", currentImage.getHeight()));
+            response.put("image", Map.of("name", currentPalette.getImageName(), "width", currentImage.getWidth(), "height", currentImage.getHeight()));
         }
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/reset")
     public ResponseEntity<Map<String, Object>> resetSession() {
-        currentImage = null;
-        currentImageName = null;
-        currentPalette = null;
+        userSessionManager.setCurrentImage(null);
+        userSessionManager.setPaletteManager(null);
         Logger.info("Palette session reset");
         return ResponseEntity.ok(Map.of("success", true, "message", "Session reset successfully"));
     }
@@ -215,6 +223,7 @@ public class PaletteWorkflowController {
     // --- HELPER METHODS ---
 
     private Map<String, Object> buildPaletteResponse() {
+        PaletteManager currentPalette = userSessionManager.getPaletteManager();
         if (currentPalette == null) return new HashMap<>();
         Map<String, Object> paletteData = new HashMap<>();
         paletteData.put("size", currentPalette.getPaletteSize());
