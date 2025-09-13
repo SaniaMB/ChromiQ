@@ -1,11 +1,13 @@
-# Stage 1: Build the application using Maven
-FROM maven:3.8-openjdk-21 AS build
+# Stage 1: Build the application using Maven + Java 21
+FROM maven:3.9.6-eclipse-temurin-21 AS build
 WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline
 COPY . .
 RUN mvn clean package -DskipTests
 
-# Stage 2: Create the final, smaller image with only the necessary files
-FROM openjdk:21-slim
+# Stage 2: Runtime image with JDK 21
+FROM eclipse-temurin:21-jdk-jammy
 WORKDIR /app
 COPY --from=build /app/target/chromiq-1.0-SNAPSHOT.jar app.jar
 EXPOSE 8080
