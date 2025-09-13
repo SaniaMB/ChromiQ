@@ -5,7 +5,7 @@ COPY . .
 RUN mvn clean package -DskipTests
 
 # Stage 2: Create the final, smaller image with only the necessary files
-FROM openjdk:17-slim
+FROM openjdk:21-slim
 WORKDIR /app
 COPY --from=build /app/target/chromiq-1.0-SNAPSHOT.jar app.jar
 EXPOSE 8080
