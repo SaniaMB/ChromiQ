@@ -142,12 +142,14 @@ public class PaletteManager {
                     String.format("Palette is full (%d colors). Remove a color first.", MAX_PALETTE_SIZE));
         }
 
-        // Check for similar colors already in palette
-        PaletteColor similarColor = findSimilarColor(pickedColor);
-        if (similarColor != null) {
-            return new AddColorResult(false,
-                    String.format("Similar color already exists: %s (%s)",
-                            similarColor.getColor().getHex(), similarColor.getSourceDescription()));
+        // When user picks an exact pixel, bypass the similarity check to give them full control.
+        if (!isExactPick) {
+            PaletteColor similarColor = findSimilarColor(pickedColor);
+            if (similarColor != null) {
+                return new AddColorResult(false,
+                        String.format("Similar color already exists: %s (%s)",
+                                similarColor.getColor().getHex(), similarColor.getSourceDescription()));
+            }
         }
 
         // Add the new color
@@ -362,3 +364,4 @@ public class PaletteManager {
         public String getMessage() { return message; }
     }
 }
+

@@ -2,9 +2,720 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChromiQ - Smart Color Palette Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --background-color: #f8f9fa;
+            --card-background: #ffffff;
+            --primary-text: #212529;
+            --secondary-text: #6c757d;
+            --border-color: #dee2e6;
+            --primary-accent: #0d6efd;
+            --primary-accent-light: #e6f0ff;
+            --danger-color: #dc3545;
+            --success-color: #198754;
+            --border-radius: 12px;
+            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            --card-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: var(--background-color);
+            color: var(--primary-text);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+            background: linear-gradient(45deg, var(--primary-accent), #00c6ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: var(--secondary-text);
+            font-size: 1.1rem;
+            margin-top: 0.5rem;
+        }
+
+        .upload-section {
+            background: var(--card-background);
+            border: 2px dashed var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 3rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            cursor: pointer;
+            transition: border-color 0.3s, background-color 0.3s, box-shadow 0.3s;
+        }
+
+        .upload-section:hover, .upload-section.dragover {
+            border-color: var(--primary-accent);
+            background-color: var(--primary-accent-light);
+            box-shadow: var(--card-shadow);
+        }
+
+        #imageInput {
+            display: none;
+        }
+
+        .upload-text {
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-hint {
+            color: var(--secondary-text);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .image-display, .palette-section {
+            background: var(--card-background);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            display: none; /* Hidden by default */
+        }
+
+        #uploadedImage {
+            width: 100%;
+            height: auto;
+            max-height: 500px;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            cursor: none; /* Hide default cursor for custom picker */
+        }
+
+        .palette-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .palette-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .palette-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .reset-button {
+            background: var(--primary-accent-light);
+            color: var(--primary-accent);
+            border: 1px solid var(--primary-accent);
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .reset-button:hover {
+            background: var(--primary-accent);
+            color: white;
+        }
+
+        .palette-info {
+            font-size: 0.9rem;
+            color: var(--secondary-text);
+        }
+
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .color-card {
+            border-radius: 8px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .color-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--card-shadow-hover);
+        }
+
+        .color-card.selected {
+            box-shadow: 0 0 0 3px var(--primary-accent);
+        }
+
+        .color-swatch {
+            height: 80px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .copy-button {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .color-swatch:hover .copy-button {
+            opacity: 1;
+        }
+
+        .color-info {
+            padding: 0.75rem;
+            background: #fdfdfd;
+        }
+
+        .color-hex {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .color-values {
+            font-size: 0.75rem;
+            color: var(--secondary-text);
+            line-height: 1.4;
+        }
+
+        .remove-button {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .color-card:hover .remove-button {
+            opacity: 1;
+        }
+
+        .message-area {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: auto;
+            max-width: 320px;
+        }
+
+        .message {
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+            font-weight: 500;
+            text-align: left;
+            margin-top: 10px;
+            opacity: 0;
+            transform: translateX(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .message.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .message.error {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .message.success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .message.loading {
+            background: var(--primary-text);
+            color: white;
+        }
+
+        .click-instruction {
+            background: var(--primary-accent-light);
+            border: 1px solid var(--primary-accent);
+            color: var(--primary-accent);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        #colorPickerPreview {
+            position: fixed;
+            width: 80px;
+            height: 80px;
+            pointer-events: none;
+            display: none;
+            z-index: 999;
+            transform: translate(-50%, -50%); /* Center perfectly on cursor */
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.5);
+        }
+
+        #pickerCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
 </head>
 <body>
 
+<div class="header">
+    <h1>ChromiQ</h1>
+    <p>Generate beautiful color palettes from your images.</p>
+</div>
+
+<!-- Messages will appear here -->
+<div class="message-area" id="messageArea"></div>
+
+<!-- Image Upload Section -->
+<div class="upload-section" id="uploadSection">
+    <div class="upload-text">📸 Upload an image to extract colors</div>
+    <div class="upload-hint">Click here or drag & drop an image file</div>
+    <input type="file" id="imageInput" accept="image/*">
+</div>
+
+<!-- This canvas is used for getting pixel data, it's not visible -->
+<canvas id="imageCanvas" style="display:none;"></canvas>
+
+<div id="colorPickerPreview">
+    <canvas id="pickerCanvas" width="80" height="80"></canvas>
+</div>
+
+
+<!-- Main Content Area -->
+<div class="main-content" id="mainContent">
+    <!-- Image Display Section -->
+    <div class="image-display" id="imageDisplay">
+        <div id="imageContainer" style="position: relative; line-height: 0;">
+            <img id="uploadedImage" alt="Uploaded image">
+        </div>
+        <div class="click-instruction" id="clickInstruction">
+            💡 Hover over the image to inspect colors. Click to add or replace.
+        </div>
+    </div>
+
+    <!-- Palette Section -->
+    <div class="palette-section" id="paletteSection">
+        <div class="palette-header">
+            <div class="palette-title">Your Palette</div>
+            <div class="palette-controls">
+                <div class="palette-info" id="paletteInfo">0/10 colors</div>
+                <button class="reset-button" id="resetButton" title="Upload a new image">Start Over</button>
+            </div>
+        </div>
+        <div class="palette-grid" id="paletteGrid">
+            <!-- Color cards will be added here dynamically -->
+        </div>
+    </div>
+</div>
+
+<script>
+    // Global variables
+    let currentPalette = null;
+    let selectedColorIndex = null;
+    let isMouseOverImage = false; // MODIFIED: Added flag for reliable hover tracking
+
+    // DOM elements
+    const uploadSection = document.getElementById('uploadSection');
+    const imageInput = document.getElementById('imageInput');
+    const mainContent = document.getElementById('mainContent');
+    const imageDisplay = document.getElementById('imageDisplay');
+    const imageContainer = document.getElementById('imageContainer');
+    const uploadedImage = document.getElementById('uploadedImage');
+    const paletteSection = document.getElementById('paletteSection');
+    const paletteGrid = document.getElementById('paletteGrid');
+    const paletteInfo = document.getElementById('paletteInfo');
+    const messageArea = document.getElementById('messageArea');
+    const clickInstruction = document.getElementById('clickInstruction');
+    const resetButton = document.getElementById('resetButton'); // NEW: Reset button element
+
+    // Canvas and Color Picker elements
+    const imageCanvas = document.getElementById('imageCanvas');
+    const canvasCtx = imageCanvas.getContext('2d');
+    const colorPickerPreview = document.getElementById('colorPickerPreview');
+    const pickerCanvas = document.getElementById('pickerCanvas');
+    const pickerCtx = pickerCanvas.getContext('2d');
+
+    const API_BASE = '/api/palette';
+
+    function initializeEventListeners() {
+        uploadSection.addEventListener('click', () => imageInput.click());
+        imageInput.addEventListener('change', handleFileSelection);
+        uploadSection.addEventListener('dragover', handleDragOver);
+        uploadSection.addEventListener('drop', handleDrop);
+        uploadSection.addEventListener('dragleave', handleDragLeave);
+
+        imageContainer.addEventListener('click', handleImageClick);
+        imageContainer.addEventListener('mouseenter', handleMouseEnterImage);
+        imageContainer.addEventListener('mouseleave', handleMouseLeaveImage);
+
+        resetButton.addEventListener('click', resetApp); // NEW: Event listener for reset button
+    }
+
+    // NEW: Function to reset the application to its initial state
+    function resetApp() {
+        mainContent.style.display = 'none';
+        imageDisplay.style.display = 'none';
+        paletteSection.style.display = 'none';
+        uploadSection.style.display = 'block';
+
+        uploadedImage.src = '';
+        imageInput.value = ''; // Clear file input
+        paletteGrid.innerHTML = '';
+        currentPalette = null;
+        selectedColorIndex = null;
+        isMouseOverImage = false;
+        showSuccess("Ready for a new image!");
+    }
+
+    function handleMouseEnterImage(event) {
+        isMouseOverImage = true; // MODIFIED: Set flag
+        showColorPreview();
+        handleImageHover(event);
+        imageContainer.addEventListener('mousemove', handleImageHover);
+    }
+
+    function handleMouseLeaveImage() {
+        isMouseOverImage = false; // MODIFIED: Unset flag
+        hideColorPreview();
+        imageContainer.removeEventListener('mousemove', handleImageHover);
+    }
+
+    function handleFileSelection(event) {
+        const file = event.target.files[0];
+        if (file) uploadImage(file);
+    }
+
+    function handleDragOver(event) {
+        event.preventDefault();
+        uploadSection.classList.add('dragover');
+    }
+
+    function handleDrop(event) {
+        event.preventDefault();
+        uploadSection.classList.remove('dragover');
+        if (event.dataTransfer.files.length > 0) {
+            uploadImage(event.dataTransfer.files[0]);
+        }
+    }
+
+    function handleDragLeave() {
+        uploadSection.classList.remove('dragover');
+    }
+
+    async function uploadImage(file) {
+        showLoading('Uploading image and extracting colors...');
+        selectedColorIndex = null;
+
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+            const response = await fetch(`${API_BASE}/upload`, { method: 'POST', body: formData });
+            const result = await response.json();
+
+            if (result.success) {
+                await displayImage(file);
+                displayPalette(result.palette);
+                currentPalette = result.palette;
+                showSuccess(`Successfully extracted ${result.palette.size} colors`);
+                uploadSection.style.display = 'none';
+                mainContent.style.display = 'grid';
+            } else {
+                showError(result.message || 'Failed to upload image');
+            }
+        } catch (error) {
+            showError('Error uploading image: ' + error.message);
+        }
+    }
+
+    function displayImage(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                uploadedImage.src = e.target.result;
+                uploadedImage.onload = () => {
+                    imageCanvas.width = uploadedImage.naturalWidth;
+                    imageCanvas.height = uploadedImage.naturalHeight;
+                    canvasCtx.drawImage(uploadedImage, 0, 0);
+                    imageDisplay.style.display = 'block';
+                    resolve();
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function displayPalette(palette) {
+        paletteGrid.innerHTML = '';
+        paletteInfo.textContent = `${palette.size}/${palette.maxSize} colors`;
+        palette.colors.forEach((color, index) => {
+            paletteGrid.appendChild(createColorCard(color, index));
+        });
+        paletteSection.style.display = 'block';
+        updateSelectionVisuals();
+    }
+
+    function createColorCard(color, index) {
+        const card = document.createElement('div');
+        card.className = 'color-card';
+        card.id = `color-card-${index}`;
+
+        card.innerHTML = `
+            <div class="color-swatch" style="background-color: ${color.hex}" onclick="selectColorForReplacement(${index})">
+                <button class="copy-button" onclick="copyToClipboard(event, '${color.hex}')" title="Copy HEX">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
+            </div>
+            <div class="color-info">
+                <div class="color-hex">${color.hex}</div>
+                <div class="color-values">RGB: ${color.rgb.red}, ${color.rgb.green}, ${color.rgb.blue}</div>
+            </div>
+            <button class="remove-button" onclick="removeColor(event, ${index})" title="Remove color">×</button>
+        `;
+        return card;
+    }
+
+    function selectColorForReplacement(index) {
+        selectedColorIndex = (selectedColorIndex === index) ? null : index;
+        updateSelectionVisuals();
+    }
+
+    function updateSelectionVisuals() {
+        document.querySelectorAll('.color-card').forEach((card, i) => {
+            card.classList.toggle('selected', i === selectedColorIndex);
+        });
+        if (selectedColorIndex !== null) {
+            clickInstruction.textContent = `✅ Selected a color. Click the image to replace it.`;
+        } else {
+            clickInstruction.textContent = `💡 Hover over the image to inspect colors. Click to add or replace.`;
+        }
+    }
+
+    async function handleImageClick(event) {
+        const { actualX, actualY } = getScaledCoordinates(event);
+        const payload = { x: actualX, y: actualY, exactMode: true };
+
+        if (selectedColorIndex !== null) {
+            await apiCall(`${API_BASE}/colors/${selectedColorIndex}`, 'PUT', payload, (result) => {
+                showSuccess(`Replaced color`);
+            }, 'replace');
+            selectedColorIndex = null;
+            updateSelectionVisuals();
+        } else {
+            await apiCall(`${API_BASE}/add-from-image`, 'POST', payload, (result) => {
+                 showSuccess(`Added color ${result.addedColor.hex}`);
+            }, 'add');
+        }
+    }
+
+    async function removeColor(event, index) {
+        event.stopPropagation();
+        if (selectedColorIndex === index) selectedColorIndex = null;
+        await apiCall(`${API_BASE}/colors/${index}`, 'DELETE', null, (result) => {
+            showSuccess(`Removed color ${result.removedColor.hex}`);
+        }, 'remove');
+    }
+
+    async function apiCall(url, method, body, successCallback, action) {
+        try {
+            const options = {
+                method,
+                headers: body ? { 'Content-Type': 'application/json' } : {},
+                body: body ? JSON.stringify(body) : null
+            };
+            const response = await fetch(url, options);
+            const result = await response.json();
+
+            if (result.success) {
+                displayPalette(result.palette);
+                currentPalette = result.palette;
+                if(successCallback) successCallback(result);
+            } else {
+                showError(result.message || `Failed to ${action} color`);
+            }
+        } catch (error) {
+            showError(`Error during ${action} action: ${error.message}`);
+        }
+    }
+
+    function handleImageHover(event) {
+        // MODIFIED: Failsafe check using the flag
+        if (!isMouseOverImage) {
+            hideColorPreview();
+            return;
+        }
+
+        const { actualX, actualY } = getScaledCoordinates(event);
+
+        const zoom = 10;
+        const pickerSize = pickerCanvas.width;
+        const sourceSize = pickerSize / zoom;
+
+        pickerCtx.imageSmoothingEnabled = false;
+        pickerCtx.clearRect(0, 0, pickerSize, pickerSize);
+        pickerCtx.drawImage(
+            imageCanvas,
+            actualX - sourceSize / 2,
+            actualY - sourceSize / 2,
+            sourceSize,
+            sourceSize,
+            0,
+            0,
+            pickerSize,
+            pickerSize
+        );
+
+        pickerCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        pickerCtx.lineWidth = 1;
+        const center = pickerSize / 2;
+        pickerCtx.beginPath();
+        pickerCtx.moveTo(center, 0);
+        pickerCtx.lineTo(center, pickerSize);
+        pickerCtx.moveTo(0, center);
+        pickerCtx.lineTo(pickerSize, center);
+        pickerCtx.stroke();
+
+        colorPickerPreview.style.left = `${event.clientX}px`;
+        colorPickerPreview.style.top = `${event.clientY}px`;
+    }
+
+    function showColorPreview() {
+        colorPickerPreview.style.display = 'block';
+    }
+
+    function hideColorPreview() {
+        colorPickerPreview.style.display = 'none';
+    }
+
+    function getScaledCoordinates(event) {
+        const rect = uploadedImage.getBoundingClientRect();
+        const borderLeft = parseFloat(getComputedStyle(uploadedImage).borderLeftWidth) || 0;
+        const borderTop = parseFloat(getComputedStyle(uploadedImage).borderTopWidth) || 0;
+
+        const x = event.clientX - rect.left - borderLeft;
+        const y = event.clientY - rect.top - borderTop;
+
+        const scaleX = uploadedImage.naturalWidth / uploadedImage.clientWidth;
+        const scaleY = uploadedImage.naturalHeight / uploadedImage.clientHeight;
+
+        const actualX = Math.round(x * scaleX);
+        const actualY = Math.round(y * scaleY);
+
+        return {
+            actualX: Math.max(0, Math.min(uploadedImage.naturalWidth - 1, actualX)),
+            actualY: Math.max(0, Math.min(uploadedImage.naturalHeight - 1, actualY))
+        };
+    }
+
+    function copyToClipboard(event, text) {
+        event.stopPropagation();
+        navigator.clipboard.writeText(text).then(() => {
+            showSuccess(`Copied ${text} to clipboard!`);
+        }, () => {
+            showError('Failed to copy text.');
+        });
+    }
+
+    const notificationQueue = [];
+    let isNotificationVisible = false;
+
+    function showMessage(message, type) {
+        notificationQueue.push({ message, type });
+        processNotificationQueue();
+    }
+
+    function processNotificationQueue() {
+        if (isNotificationVisible || notificationQueue.length === 0) {
+            return;
+        }
+        isNotificationVisible = true;
+        const { message, type } = notificationQueue.shift();
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${type}`;
+        msgDiv.textContent = message;
+        messageArea.appendChild(msgDiv);
+
+        setTimeout(() => msgDiv.classList.add('show'), 10);
+
+        setTimeout(() => {
+            msgDiv.classList.remove('show');
+            msgDiv.addEventListener('transitionend', () => {
+                msgDiv.remove();
+                isNotificationVisible = false;
+                processNotificationQueue();
+            }, { once: true });
+        }, 2000);
+    }
+
+    const showLoading = (msg) => showMessage(msg, 'loading');
+    const showError = (msg) => showMessage(msg, 'error');
+    const showSuccess = (msg) => showMessage(msg, 'success');
+
+    document.addEventListener('DOMContentLoaded', initializeEventListeners);
+</script>
 </body>
 </html>
+
