@@ -4,9 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChromiQ - Smart Color Palette Generator</title>
+    <meta name="description" content="Instantly generate beautiful color palettes from any image. An interactive, open-source tool for designers and developers.">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='40' cy='40' r='30' fill='%23F44336' fill-opacity='0.8'/%3E%3Ccircle cx='60' cy='40' r='30' fill='%232196F3' fill-opacity='0.8'/%3E%3Ccircle cx='50' cy='60' r='30' fill='%234CAF50' fill-opacity='0.8'/%3E%3C/svg%3E">
+
+    <meta property="og:title" content="ChromiQ - Color Palette Generator">
+    <meta property="og:description" content="Instantly generate beautiful color palettes from any image with this interactive, open-source tool.">
+    <meta property="og:type" content="website">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             --background-color: #f8f9fa;
@@ -21,6 +27,23 @@
             --border-radius: 12px;
             --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             --card-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.1);
+            --transition-speed: 0.3s;
+            --gradient-1: #3b82f6;
+            --gradient-2: #00c6ff;
+            --bg-blur-color-1: rgba(59, 130, 246, 0.15);
+            --bg-blur-color-2: rgba(0, 198, 255, 0.1);
+        }
+
+        body.dark-mode {
+            --background-color: #121212;
+            --card-background: #1e1e1e;
+            --primary-text: #e0e0e0;
+            --secondary-text: #888888;
+            --border-color: #333333;
+            --primary-accent: #3b82f6;
+            --primary-accent-light: rgba(59, 130, 246, 0.1);
+            --bg-blur-color-1: rgba(59, 130, 246, 0.1);
+            --bg-blur-color-2: rgba(0, 198, 255, 0.08);
         }
 
         body {
@@ -30,388 +53,243 @@
             padding: 2rem;
             background-color: var(--background-color);
             color: var(--primary-text);
+            transition: background-color var(--transition-speed), color var(--transition-speed);
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            position: relative;
+            overflow-x: hidden;
         }
 
-        .header {
+        body::before {
+            content: '';
+            position: fixed;
+            top: -20%;
+            left: -20%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, var(--bg-blur-color-1) 0%, transparent 70%);
+            filter: blur(100px);
+            z-index: -1;
+            opacity: 0.8;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -20%;
+            right: -20%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, var(--bg-blur-color-2) 0%, transparent 70%);
+            filter: blur(100px);
+            z-index: -1;
+            opacity: 0.8;
+        }
+
+        .hero-section {
             text-align: center;
+            padding: 2rem 0; /* Added padding for more space */
             margin-bottom: 2.5rem;
         }
 
-        .header h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
+        .hero-section h1 {
+            font-size: 4.5rem; /* Even bigger for more impact */
+            font-weight: 800;
+            letter-spacing: -2.5px;
             margin: 0;
-            background: linear-gradient(45deg, var(--primary-accent), #00c6ff);
+        }
+
+        .gradient-text {
+            background: linear-gradient(45deg, var(--gradient-1), var(--gradient-2));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        .header p {
-            color: var(--secondary-text);
-            font-size: 1.1rem;
-            margin-top: 0.5rem;
-        }
-
-        .upload-section {
-            background: var(--card-background);
-            border: 2px dashed var(--border-color);
-            border-radius: var(--border-radius);
-            padding: 3rem;
-            text-align: center;
-            margin-bottom: 2rem;
-            cursor: pointer;
-            transition: border-color 0.3s, background-color 0.3s, box-shadow 0.3s;
-        }
-
-        .upload-section:hover, .upload-section.dragover {
-            border-color: var(--primary-accent);
-            background-color: var(--primary-accent-light);
-            box-shadow: var(--card-shadow);
-        }
-
-        #imageInput {
-            display: none;
-        }
-
-        .upload-text {
+        .hero-section p {
             font-size: 1.25rem;
-            font-weight: 500;
-            margin-bottom: 0.5rem;
-        }
-
-        .upload-hint {
+            max-width: 600px;
+            margin: 0.5rem auto 0;
             color: var(--secondary-text);
         }
 
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            align-items: start;
-        }
-
-        .image-display, .palette-section {
+        .theme-switcher {
+            position: absolute; /* Changed from fixed to absolute */
+            top: 2rem;
+            right: 2rem;
             background: var(--card-background);
-            border-radius: var(--border-radius);
-            padding: 1.5rem;
-            box-shadow: var(--card-shadow);
-            display: none; /* Hidden by default */
-        }
-
-        #uploadedImage {
-            width: 100%;
-            height: auto;
-            max-height: 500px;
-            object-fit: contain;
-            border-radius: 8px;
             border: 1px solid var(--border-color);
-            cursor: none; /* Hide default cursor for custom picker */
-        }
-
-        .palette-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .palette-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-        .palette-controls {
+            border-radius: 50%;
+            padding: 8px;
+            cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 1rem;
+            justify-content: center;
+            box-shadow: var(--card-shadow);
+            transition: all 0.2s;
         }
 
-        .reset-button {
-            background: var(--primary-accent-light);
-            color: var(--primary-accent);
-            border: 1px solid var(--primary-accent);
-            padding: 0.4rem 0.8rem;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s, color 0.2s;
-        }
-
-        .reset-button:hover {
-            background: var(--primary-accent);
-            color: white;
-        }
-
-        .palette-info {
-            font-size: 0.9rem;
-            color: var(--secondary-text);
-        }
-
-        .palette-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 1rem;
-        }
-
-        .color-card {
-            border-radius: 8px;
-            overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
-            border: 1px solid var(--border-color);
-            position: relative;
-        }
-
-        .color-card:hover {
-            transform: translateY(-4px);
+        .theme-switcher:hover {
+            transform: scale(1.1);
             box-shadow: var(--card-shadow-hover);
         }
 
-        .color-card.selected {
-            box-shadow: 0 0 0 3px var(--primary-accent);
-        }
-
-        .color-swatch {
-            height: 80px;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .copy-button {
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(5px);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 6px;
-            width: 28px;
-            height: 28px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .color-swatch:hover .copy-button {
-            opacity: 1;
-        }
-
-        .color-info {
-            padding: 0.75rem;
-            background: #fdfdfd;
-        }
-
-        .color-hex {
-            font-size: 1rem;
-            font-weight: 600;
-        }
-
-        .color-values {
-            font-size: 0.75rem;
-            color: var(--secondary-text);
-            line-height: 1.4;
-        }
-
-        .remove-button {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            border: none;
-            border-radius: 50%;
+        .theme-switcher-icon {
             width: 24px;
             height: 24px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            opacity: 0;
-            transition: opacity 0.2s;
-            z-index: 10;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            transition: transform 0.3s ease;
+            color: var(--primary-text);
         }
 
-        .color-card:hover .remove-button {
-            opacity: 1;
+        /* ... (rest of your CSS is the same) ... */
+        .upload-section { background: var(--card-background); border: 2px dashed var(--border-color); border-radius: var(--border-radius); padding: 3rem; text-align: center; margin-bottom: 2rem; cursor: pointer; transition: border-color 0.3s, background-color 0.3s, box-shadow 0.3s; }
+        .upload-section:hover, .upload-section.dragover { border-color: var(--primary-accent); background-color: var(--primary-accent-light); box-shadow: var(--card-shadow); }
+        #imageInput { display: none; }
+        .upload-text { font-size: 1.25rem; font-weight: 500; margin-bottom: 0.5rem; }
+        .upload-hint { color: var(--secondary-text); }
+        .main-content { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+        .image-display, .palette-section { background: var(--card-background); border-radius: var(--border-radius); padding: 1.5rem; box-shadow: var(--card-shadow); display: none; }
+        #uploadedImage { width: 100%; height: auto; max-height: 500px; object-fit: contain; border-radius: 8px; border: 1px solid var(--border-color); cursor: none; }
+        .palette-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-color); }
+        .palette-title { font-size: 1.25rem; font-weight: 600; }
+        .palette-controls { display: flex; align-items: center; gap: 0.75rem; }
+        .control-button { background: var(--primary-accent-light); color: var(--primary-accent); border: 1px solid transparent; padding: 0.4rem 0.8rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background-color 0.2s, color 0.2s, border-color 0.2s; }
+        .control-button:hover { background: var(--primary-accent); color: white; }
+        .control-button:disabled { background: var(--border-color); color: var(--secondary-text); cursor: not-allowed; border-color: transparent; }
+        .palette-info { font-size: 0.9rem; color: var(--secondary-text); }
+        .palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+        .color-card { border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); position: relative; transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .color-card:hover { transform: translateY(-4px); box-shadow: var(--card-shadow-hover); }
+        .color-card.selected { box-shadow: 0 0 0 3px var(--primary-accent); }
+        .color-swatch { height: 80px; cursor: pointer; position: relative; }
+        .copy-button { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(8px); color: white; border: none; border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; opacity: 0; transform: scale(0.9); transition: opacity 0.2s, transform 0.2s; }
+        .color-swatch:hover .copy-button { opacity: 1; transform: scale(1); }
+        .color-info { padding: 0.75rem; background: var(--card-background); }
+        .color-hex { font-size: 1rem; font-weight: 600; }
+        .color-values { font-size: 0.75rem; color: var(--secondary-text); line-height: 1.4; }
+        .remove-button { position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.5); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 14px; font-weight: bold; opacity: 0; transition: opacity 0.2s; z-index: 10; display: flex; align-items: center; justify-content: center; }
+        .color-card:hover .remove-button { opacity: 1; }
+        .message-area { position: fixed; bottom: 20px; right: 20px; z-index: 1000; width: auto; max-width: 320px; }
+        .message { padding: 0.75rem 1.25rem; border-radius: 8px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15); font-weight: 500; text-align: left; margin-top: 10px; opacity: 0; transform: translateX(20px); transition: opacity 0.3s ease, transform 0.3s ease; }
+        .message.show { opacity: 1; transform: translateX(0); }
+        .message.error { background: var(--danger-color); color: white; }
+        .message.success { background: var(--success-color); color: white; }
+        .message.loading { background: var(--primary-text); color: white; }
+        .click-instruction { background: var(--primary-accent-light); border: 1px solid var(--primary-accent); color: var(--primary-accent); padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: center; font-weight: 500; }
+        #colorPickerPreview { position: fixed; width: 80px; height: 80px; pointer-events: none; display: none; z-index: 999; transform: translate(-50%, -50%); border-radius: 50%; overflow: hidden; border: 3px solid white; box-shadow: 0 5px 15px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.5); }
+        #pickerCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 2000; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .modal-content { background: var(--card-background); padding: 2rem; border-radius: var(--border-radius); width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transform: scale(0.95); transition: transform 0.3s; }
+        .modal-overlay.visible .modal-content { transform: scale(1); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color); }
+        .modal-title { font-size: 1.25rem; font-weight: 600; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--secondary-text); }
+        .export-options { display: flex; flex-direction: column; gap: 1rem; }
+        .export-option { display: block; width: 100%; padding: 0.75rem 1rem; font-size: 1rem; font-weight: 500; text-align: left; background: var(--primary-accent-light); color: var(--primary-accent); border: 1px solid transparent; border-radius: 8px; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+        .export-option:hover { background-color: var(--primary-accent); color: white; }
+        footer { text-align: center; padding: 2rem 0 1rem 0; margin-top: 2rem; color: var(--secondary-text); font-size: 0.9rem; border-top: 1px solid var(--border-color); }
+        .footer-link a { color: var(--primary-accent); text-decoration: none; font-weight: 500; }
+        .footer-link a:hover { text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem; /* Reduce padding on mobile */
+            }
+
+            .hero-section h1 {
+                font-size: 3rem; /* Make title smaller on mobile */
+            }
+
+            .theme-switcher {
+                top: 1rem;
+                right: 1rem;
+            }
+
+            .main-content {
+                grid-template-columns: 1fr; /* Stack to a single column */
+            }
         }
 
-        .message-area {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-            width: auto;
-            max-width: 320px;
-        }
-
-        .message {
-            padding: 0.75rem 1.25rem;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
-            font-weight: 500;
-            text-align: left;
-            margin-top: 10px;
-            opacity: 0;
-            transform: translateX(20px);
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        .message.show {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        .message.error {
-            background: var(--danger-color);
-            color: white;
-        }
-
-        .message.success {
-            background: var(--success-color);
-            color: white;
-        }
-
-        .message.loading {
-            background: var(--primary-text);
-            color: white;
-        }
-
-        .click-instruction {
-            background: var(--primary-accent-light);
-            border: 1px solid var(--primary-accent);
-            color: var(--primary-accent);
-            padding: 1rem;
-            border-radius: 8px;
-            margin-top: 1rem;
-            text-align: center;
-            font-weight: 500;
-        }
-
-        #colorPickerPreview {
-            position: fixed;
-            width: 80px;
-            height: 80px;
-            pointer-events: none;
-            display: none;
-            z-index: 999;
-            transform: translate(-50%, -50%); /* Center perfectly on cursor */
-            border-radius: 50%;
-            overflow: hidden;
-            border: 3px solid white;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.5);
-        }
-
-        #pickerCanvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h1>ChromiQ</h1>
+<div class="theme-switcher" id="themeSwitcher" title="Toggle dark mode">
+    <div class="theme-switcher-icon" id="themeIcon">
+    </div>
+</div>
+
+<div class="hero-section">
+    <h1 class="gradient-text">ChromiQ</h1>
     <p>Generate beautiful color palettes from your images.</p>
 </div>
 
-<!-- Messages will appear here -->
 <div class="message-area" id="messageArea"></div>
-
-<!-- Image Upload Section -->
 <div class="upload-section" id="uploadSection">
     <div class="upload-text">📸 Upload an image to extract colors</div>
     <div class="upload-hint">Click here or drag & drop an image file</div>
     <input type="file" id="imageInput" accept="image/*">
 </div>
-
-<!-- This canvas is used for getting pixel data, it's not visible -->
 <canvas id="imageCanvas" style="display:none;"></canvas>
-
-<div id="colorPickerPreview">
-    <canvas id="pickerCanvas" width="80" height="80"></canvas>
-</div>
-
-
-<!-- Main Content Area -->
+<div id="colorPickerPreview"><canvas id="pickerCanvas" width="80" height="80"></canvas></div>
 <div class="main-content" id="mainContent">
-    <!-- Image Display Section -->
-    <div class="image-display" id="imageDisplay">
-        <div id="imageContainer" style="position: relative; line-height: 0;">
-            <img id="uploadedImage" alt="Uploaded image">
-        </div>
-        <div class="click-instruction" id="clickInstruction">
-            💡 Hover over the image to inspect colors. Click to add or replace.
-        </div>
-    </div>
-
-    <!-- Palette Section -->
-    <div class="palette-section" id="paletteSection">
-        <div class="palette-header">
-            <div class="palette-title">Your Palette</div>
-            <div class="palette-controls">
-                <div class="palette-info" id="paletteInfo">0/10 colors</div>
-                <button class="reset-button" id="resetButton" title="Upload a new image">Start Over</button>
-            </div>
-        </div>
-        <div class="palette-grid" id="paletteGrid">
-            <!-- Color cards will be added here dynamically -->
-        </div>
-    </div>
+    <div class="image-display" id="imageDisplay"><div id="imageContainer" style="position: relative; line-height: 0;"><img id="uploadedImage" alt="Uploaded image"></div><div class="click-instruction" id="clickInstruction">💡 Hover over the image to inspect colors. Click to add or replace.</div></div>
+    <div class="palette-section" id="paletteSection"><div class="palette-header"><div class="palette-title">Your Palette</div><div class="palette-controls"><div class="palette-info" id="paletteInfo">0/10 colors</div><button class="control-button" id="undoButton" title="Undo last action" disabled>Undo</button><button class="control-button" id="exportButton" title="Export palette">Export</button><button class="control-button" id="resetButton" title="Upload a new image">Start Over</button></div></div><div class="palette-grid" id="paletteGrid"></div></div>
 </div>
+<div class="modal-overlay" id="exportModal">
+    <div class="modal-content"><div class="modal-header"><h2 class="modal-title">Export Palette</h2><button class="modal-close" id="closeModalButton">&times;</button></div><div class="export-options"><button class="export-option" id="exportCssButton">Copy CSS Variables</button><button class="export-option" id="exportPngButton">Download as PNG</button><button class="export-option" id="exportHexButton">Copy HEX Codes</button></div></div>
+</div>
+<footer>
+    <p>
+        Copyright © 2025 SaniaMB. Released under the MIT License.
+    </p>
+    <p class="footer-link">
+        <a href="https://github.com/SaniaMB/ChromiQ" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+    </p>
+</footer>
+
 <script>
-    // Global variables
-    let currentPalette = null;
-    let selectedColorIndex = null;
-    let isMouseOverImage = false;
+    // --- GLOBAL STATE ---
+    let currentPalette = null; let selectedColorIndex = null; let isMouseOverImage = false; let paletteHistory = []; let serverImageWidth = null; let serverImageHeight = null;
+    // --- DOM ELEMENTS ---
+    const uploadSection = document.getElementById('uploadSection'); const imageInput = document.getElementById('imageInput'); const mainContent = document.getElementById('mainContent'); const imageDisplay = document.getElementById('imageDisplay'); const imageContainer = document.getElementById('imageContainer'); const uploadedImage = document.getElementById('uploadedImage'); const paletteSection = document.getElementById('paletteSection'); const paletteGrid = document.getElementById('paletteGrid'); const paletteInfo = document.getElementById('paletteInfo'); const messageArea = document.getElementById('messageArea'); const clickInstruction = document.getElementById('clickInstruction'); const resetButton = document.getElementById('resetButton'); const themeSwitcher = document.getElementById('themeSwitcher'); const themeIcon = document.getElementById('themeIcon'); const undoButton = document.getElementById('undoButton'); const exportButton = document.getElementById('exportButton'); const exportModal = document.getElementById('exportModal'); const closeModalButton = document.getElementById('closeModalButton'); const exportCssButton = document.getElementById('exportCssButton'); const exportPngButton = document.getElementById('exportPngButton'); const exportHexButton = document.getElementById('exportHexButton');
+    // --- CANVAS & API ---
+    const imageCanvas = document.getElementById('imageCanvas'); const canvasCtx = imageCanvas.getContext('2d'); const colorPickerPreview = document.getElementById('colorPickerPreview'); const pickerCanvas = document.getElementById('pickerCanvas'); const pickerCtx = pickerCanvas.getContext('2d'); const API_BASE = '/api/palette';
 
-    // DOM elements
-    const uploadSection = document.getElementById('uploadSection');
-    const imageInput = document.getElementById('imageInput');
-    const mainContent = document.getElementById('mainContent');
-    const imageDisplay = document.getElementById('imageDisplay');
-    const imageContainer = document.getElementById('imageContainer');
-    const uploadedImage = document.getElementById('uploadedImage');
-    const paletteSection = document.getElementById('paletteSection');
-    const paletteGrid = document.getElementById('paletteGrid');
-    const paletteInfo = document.getElementById('paletteInfo');
-    const messageArea = document.getElementById('messageArea');
-    const clickInstruction = document.getElementById('clickInstruction');
-    const resetButton = document.getElementById('resetButton');
-
-    // Canvas and Color Picker elements
-    const imageCanvas = document.getElementById('imageCanvas');
-    const canvasCtx = imageCanvas.getContext('2d');
-    const colorPickerPreview = document.getElementById('colorPickerPreview');
-    const pickerCanvas = document.getElementById('pickerCanvas');
-    const pickerCtx = pickerCanvas.getContext('2d');
-
-    const API_BASE = '/api/palette';
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeEventListeners();
+        restoreSession();
+    });
 
     function initializeEventListeners() {
-        uploadSection.addEventListener('click', () => imageInput.click());
-        imageInput.addEventListener('change', handleFileSelection);
-        uploadSection.addEventListener('dragover', handleDragOver);
-        uploadSection.addEventListener('drop', handleDrop);
-        uploadSection.addEventListener('dragleave', handleDragLeave);
+        uploadSection.addEventListener('click', () => imageInput.click()); imageInput.addEventListener('change', handleFileSelection); uploadSection.addEventListener('dragover', (e) => { e.preventDefault(); uploadSection.classList.add('dragover'); }); uploadSection.addEventListener('drop', handleDrop); uploadSection.addEventListener('dragleave', () => uploadSection.classList.remove('dragover'));
+        imageContainer.addEventListener('click', handleImageClick); imageContainer.addEventListener('mouseenter', handleMouseEnterImage); imageContainer.addEventListener('mouseleave', handleMouseLeaveImage);
+        resetButton.addEventListener('click', resetApp); themeSwitcher.addEventListener('click', toggleTheme); undoButton.addEventListener('click', handleUndo); exportButton.addEventListener('click', () => exportModal.classList.add('visible'));
+        closeModalButton.addEventListener('click', () => exportModal.classList.remove('visible')); exportModal.addEventListener('click', (e) => { if (e.target === exportModal) exportModal.classList.remove('visible'); }); exportCssButton.addEventListener('click', exportAsCss); exportPngButton.addEventListener('click', exportAsPng); exportHexButton.addEventListener('click', exportAsHex);
+        if (localStorage.getItem('theme') === 'dark') { document.body.classList.add('dark-mode'); updateThemeIcon(true); } else { updateThemeIcon(false); }
+    }
 
-        imageContainer.addEventListener('click', handleImageClick);
-        imageContainer.addEventListener('mouseenter', handleMouseEnterImage);
-        imageContainer.addEventListener('mouseleave', handleMouseLeaveImage);
+    // --- STATE MANAGEMENT ---
+    function saveToHistory() {
+        const snapshot = JSON.parse(JSON.stringify(currentPalette.colors));
+        paletteHistory.push(snapshot);
+        updateUndoButton();
+    }
 
-        resetButton.addEventListener('click', resetApp);
+    function handleUndo() {
+        if (paletteHistory.length > 0) {
+            const previousState = paletteHistory.pop();
+            currentPalette.colors = previousState;
+            currentPalette.size = previousState.length;
+            displayPalette(currentPalette);
+            showSuccess("Undo successful");
+            updateUndoButton();
+        }
+    }
+
+    function updateUndoButton() {
+        undoButton.disabled = paletteHistory.length === 0;
     }
 
     function resetApp() {
@@ -419,112 +297,135 @@
         imageDisplay.style.display = 'none';
         paletteSection.style.display = 'none';
         uploadSection.style.display = 'block';
-
         uploadedImage.src = '';
         imageInput.value = '';
         paletteGrid.innerHTML = '';
         currentPalette = null;
         selectedColorIndex = null;
         isMouseOverImage = false;
+        paletteHistory = [];
+        updateUndoButton();
         showSuccess("Ready for a new image!");
+        sessionStorage.removeItem('currentPalette');
+        sessionStorage.removeItem('uploadedImage');
     }
 
-    function handleMouseEnterImage(event) {
-        isMouseOverImage = true;
-        handleImageHover(event);
-        imageContainer.addEventListener('mousemove', handleImageHover);
-    }
+    // --- CORE LOGIC ---
+    async function uploadImage(file) {
+        showLoading('Uploading image and extracting colors...');
+        // Don't call resetApp here as it clears session storage prematurely.
+        // Clear state manually instead.
+        mainContent.style.display = 'none';
+        paletteHistory = [];
+        updateUndoButton();
 
-    function handleMouseLeaveImage() {
-        isMouseOverImage = false;
-        hideColorPreview();
-        imageContainer.removeEventListener('mousemove', handleImageHover);
-    }
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+            const response = await fetch(`${API_BASE}/upload`, { method: 'POST', body: formData });
+            const result = await response.json();
+            if (result.success) {
+                serverImageWidth = result.imageWidth;
+                serverImageHeight = result.imageHeight;
 
-    function handleFileSelection(event) {
-        const file = event.target.files[0];
-        if (file) uploadImage(file);
-    }
+                const imageUrl = await getBase64(file);
+                sessionStorage.setItem('uploadedImage', imageUrl);
+                sessionStorage.setItem('currentPalette', JSON.stringify(result.palette));
 
-    function handleDragOver(event) {
-        event.preventDefault();
-        uploadSection.classList.add('dragover');
-    }
+                await displayImage(imageUrl);
+                currentPalette = result.palette;
+                displayPalette(currentPalette);
 
-    function handleDrop(event) {
-        event.preventDefault();
-        uploadSection.classList.remove('dragover');
-        if (event.dataTransfer.files.length > 0) {
-            uploadImage(event.dataTransfer.files[0]);
+                showSuccess(`Successfully extracted ${result.palette.size} colors`);
+                uploadSection.style.display = 'none';
+                mainContent.style.display = 'grid';
+
+            } else {
+                showError(result.message || 'Failed to upload image');
+                resetApp();
+            }
+        } catch (error) {
+            showError('Error uploading image: ' + error.message);
+            resetApp();
         }
     }
 
-    function handleDragLeave() {
-        uploadSection.classList.remove('dragover');
-    }
-
-  // Store server-side dimensions after upload
-// keep these global
-let serverImageWidth = null;
-let serverImageHeight = null;
-
-async function uploadImage(file) {
-    showLoading('Uploading image and extracting colors...');
-    selectedColorIndex = null;
-
-    try {
-        const formData = new FormData();
-        formData.append('image', file);
-
-        const response = await fetch(`${API_BASE}/upload`, {
-            method: 'POST',
-            body: formData
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            // ✅ store backend’s actual dimensions
-            serverImageWidth = result.imageWidth;
-            serverImageHeight = result.imageHeight;
-
-            await displayImage(file);
-            displayPalette(result.palette);
-            currentPalette = result.palette;
-
-            showSuccess(`Successfully extracted ${result.palette.size} colors`);
-            uploadSection.style.display = 'none';
-            mainContent.style.display = 'grid';
-
-            console.log("Server dimensions:", serverImageWidth, serverImageHeight);
+    async function handleImageClick(event) {
+        const { actualX, actualY } = getScaledCoordinates(event);
+        if (actualX === null) return;
+        saveToHistory();
+        const payload = { x: actualX, y: actualY, exactMode: true };
+        if (selectedColorIndex !== null) {
+            await apiCall(`${API_BASE}/colors/${selectedColorIndex}`, 'PUT', payload, (result) => {
+                showSuccess(`Replaced color`);
+            }, 'replace');
+            selectedColorIndex = null;
+            updateSelectionVisuals();
         } else {
-            showError(result.message || 'Failed to upload image');
+            await apiCall(`${API_BASE}/add-from-image`, 'POST', payload, (result) => {
+                if (result.success) showSuccess(`Added color ${result.addedColor.hex}`);
+            }, 'add');
         }
-    } catch (error) {
-        showError('Error uploading image: ' + error.message);
     }
-}
 
-   function displayImage(file) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            uploadedImage.src = e.target.result;
-            uploadedImage.onload = () => {
-                // *** FIX: Use server-provided dimensions for the hidden canvas ***
-                imageCanvas.width = serverImageWidth || uploadedImage.naturalWidth;
-                imageCanvas.height = serverImageHeight || uploadedImage.naturalHeight;
+    async function removeColor(event, index) {
+        event.stopPropagation();
+        saveToHistory();
+        if (selectedColorIndex === index) selectedColorIndex = null;
+        await apiCall(`${API_BASE}/colors/${index}`, 'DELETE', null, (result) => {
+            showSuccess(`Removed color ${result.removedColor.hex}`);
+        }, 'remove');
+    }
 
-                // Draw the image onto the canvas, scaling it to the correct size
-                canvasCtx.drawImage(uploadedImage, 0, 0, imageCanvas.width, imageCanvas.height);
+    async function apiCall(url, method, body, successCallback, action) {
+        try {
+            const options = { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : null };
+            const response = await fetch(url, options);
+            const result = await response.json();
+            if (result.success) {
+                currentPalette = result.palette;
+                displayPalette(currentPalette);
+                // ✅ CORRECT: Save the updated palette to session storage on success
+                sessionStorage.setItem('currentPalette', JSON.stringify(result.palette));
+                if (successCallback) successCallback(result);
+            } else {
+                showError(result.message || `Failed to ${action} color`);
+                paletteHistory.pop();
+                updateUndoButton();
+            }
+        } catch (error) {
+            showError(`Error during ${action} action: ${error.message}`);
+            paletteHistory.pop();
+            updateUndoButton();
+        }
+    }
 
-                imageDisplay.style.display = 'block';
-                resolve();
+    // --- DISPLAY & UI ---
+    // ✅ CORRECTED: This function now correctly handles both a File object and a base64 string
+    function displayImage(imageSource) {
+        return new Promise((resolve) => {
+            const isBase64 = typeof imageSource === 'string' && imageSource.startsWith('data:image');
+
+            const processImage = (src) => {
+                uploadedImage.src = src;
+                uploadedImage.onload = () => {
+                    imageCanvas.width = serverImageWidth || uploadedImage.naturalWidth;
+                    imageCanvas.height = serverImageHeight || uploadedImage.naturalHeight;
+                    canvasCtx.drawImage(uploadedImage, 0, 0, imageCanvas.width, imageCanvas.height);
+                    imageDisplay.style.display = 'block';
+                    resolve();
+                };
             };
-        };
-        reader.readAsDataURL(file);
-    });
-}
+
+            if (isBase64) {
+                processImage(imageSource);
+            } else { // It's a File object
+                const reader = new FileReader();
+                reader.onload = (e) => processImage(e.target.result);
+                reader.readAsDataURL(imageSource);
+            }
+        });
+    }
 
     function displayPalette(palette) {
         paletteGrid.innerHTML = '';
@@ -534,250 +435,71 @@ async function uploadImage(file) {
         });
         paletteSection.style.display = 'block';
         updateSelectionVisuals();
+        updateUndoButton();
     }
 
-    function createColorCard(color, index) {
-        const card = document.createElement('div');
-        card.className = 'color-card';
-        card.id = `color-card-${index}`;
+    // --- EXPORT FUNCTIONS ---
+    function exportAsCss() { if (!currentPalette || currentPalette.colors.length === 0) return showError("Palette is empty!"); const cssVars = currentPalette.colors.map((c, i) => `  --color-${i + 1}: ${c.hex};`).join('\n'); const textToCopy = `:root {\n${cssVars}\n}`; copyToClipboard(null, textToCopy, "CSS variables copied!"); exportModal.classList.remove('visible'); }
+    function exportAsPng() { if (!currentPalette || currentPalette.colors.length === 0) return showError("Palette is empty!"); const swatchSize = 100; const padding = 20; const canvas = document.createElement('canvas'); canvas.width = (swatchSize * currentPalette.size) + (padding * 2); canvas.height = swatchSize + (padding * 2); const ctx = canvas.getContext('2d'); ctx.fillStyle = document.body.classList.contains('dark-mode') ? '#121212' : '#FFFFFF'; ctx.fillRect(0, 0, canvas.width, canvas.height); currentPalette.colors.forEach((color, index) => { ctx.fillStyle = color.hex; ctx.fillRect(padding + (index * swatchSize), padding, swatchSize, swatchSize); }); const link = document.createElement('a'); link.download = 'chromiq-palette.png'; link.href = canvas.toDataURL('image/png'); link.click(); exportModal.classList.remove('visible'); }
+    function exportAsHex() { if (!currentPalette || currentPalette.colors.length === 0) return showError("Palette is empty!"); const hexCodes = currentPalette.colors.map(c => c.hex).join('\n'); copyToClipboard(null, hexCodes, "HEX codes copied!"); exportModal.classList.remove('visible'); }
 
-        card.innerHTML = `
-            <div class="color-swatch" style="background-color: ${color.hex}" onclick="selectColorForReplacement(${index})">
-                <button class="copy-button" onclick="copyToClipboard(event, '${color.hex}')" title="Copy HEX">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                </button>
-            </div>
-            <div class="color-info">
-                <div class="color-hex">${color.hex}</div>
-                <div class="color-values">RGB: ${color.rgb.red}, ${color.rgb.green}, ${color.rgb.blue}</div>
-            </div>
-            <button class="remove-button" onclick="removeColor(event, ${index})" title="Remove color">×</button>
-        `;
-        return card;
-    }
+    // --- HELPER FUNCTIONS ---
+    function handleFileSelection(event) { const file = event.target.files[0]; if (file) uploadImage(file); }
+    function handleDrop(event) { event.preventDefault(); uploadSection.classList.remove('dragover'); if (event.dataTransfer.files.length > 0) { uploadImage(event.dataTransfer.files[0]); } }
+    function createColorCard(color, index) { const card = document.createElement('div'); card.className = 'color-card'; card.id = `color-card-${index}`; card.innerHTML = `<div class="color-swatch" style="background-color: ${color.hex}" onclick="selectColorForReplacement(${index})"><button class="copy-button" onclick="copyToClipboard(event, '${color.hex}')" title="Copy HEX"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button></div><div class="color-info"><div class="color-hex">${color.hex}</div><div class="color-values">RGB: ${color.rgb.red}, ${color.rgb.green}, ${color.rgb.blue}</div></div><button class="remove-button" onclick="removeColor(event, ${index})" title="Remove color">×</button>`; return card; }
+    function selectColorForReplacement(index) { selectedColorIndex = (selectedColorIndex === index) ? null : index; updateSelectionVisuals(); }
+    function updateSelectionVisuals() { document.querySelectorAll('.color-card').forEach((card, i) => { card.classList.toggle('selected', i === selectedColorIndex); }); clickInstruction.textContent = selectedColorIndex !== null ? `✅ Selected a color. Click the image to replace it.` : `💡 Hover over the image to inspect colors. Click to add or replace.`; }
+    function handleMouseEnterImage(event) { isMouseOverImage = true; handleImageHover(event); imageContainer.addEventListener('mousemove', handleImageHover); }
+    function handleMouseLeaveImage() { isMouseOverImage = false; hideColorPreview(); imageContainer.removeEventListener('mousemove', handleImageHover); }
+    function handleImageHover(event) { if (!isMouseOverImage) return hideColorPreview(); const { actualX, actualY } = getScaledCoordinates(event); if (actualX === null) return hideColorPreview(); showColorPreview(); const zoom = 10; const pickerSize = pickerCanvas.width; const sourceSize = pickerSize / zoom; pickerCtx.imageSmoothingEnabled = false; pickerCtx.clearRect(0, 0, pickerSize, pickerSize); pickerCtx.drawImage(imageCanvas, actualX - sourceSize / 2, actualY - sourceSize / 2, sourceSize, sourceSize, 0, 0, pickerSize, pickerSize); pickerCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; pickerCtx.lineWidth = 1; const center = pickerSize / 2; pickerCtx.beginPath(); pickerCtx.moveTo(center, 0); pickerCtx.lineTo(center, pickerSize); pickerCtx.moveTo(0, center); pickerCtx.lineTo(pickerSize, center); pickerCtx.stroke(); colorPickerPreview.style.left = `${event.clientX}px`; colorPickerPreview.style.top = `${event.clientY}px`; }
+    function showColorPreview() { colorPickerPreview.style.display = 'block'; }
+    function hideColorPreview() { colorPickerPreview.style.display = 'none'; }
+    function getScaledCoordinates(event) { const img = uploadedImage; const rect = img.getBoundingClientRect(); const imageWidth = serverImageWidth || img.naturalWidth; const imageHeight = serverImageHeight || img.naturalHeight; const imgRatio = imageWidth / imageHeight; const elemRatio = img.clientWidth / img.clientHeight; let renderedHeight, renderedWidth; if (imgRatio > elemRatio) { renderedWidth = img.clientWidth; renderedHeight = renderedWidth / imgRatio; } else { renderedHeight = img.clientHeight; renderedWidth = renderedHeight * imgRatio; } const offsetX = (img.clientWidth - renderedWidth) / 2; const offsetY = (img.clientHeight - renderedHeight) / 2; const x = event.clientX - rect.left - offsetX; const y = event.clientY - rect.top - offsetY; if (x < 0 || y < 0 || x > renderedWidth || y > renderedHeight) return { actualX: null, actualY: null }; const scaleX = imageWidth / renderedWidth; const scaleY = imageHeight / renderedHeight; let actualX = Math.max(0, Math.min(imageWidth - 1, Math.floor(x * scaleX))); let actualY = Math.max(0, Math.min(imageHeight - 1, Math.floor(y * scaleY))); return { actualX, actualY }; }
+    function copyToClipboard(event, text, successMessage = `Copied ${text} to clipboard!`) { if (event) event.stopPropagation(); navigator.clipboard.writeText(text).then(() => { showSuccess(successMessage); }, () => { showError('Failed to copy text.'); }); }
+    const notificationQueue = []; let isNotificationVisible = false; function showMessage(message, type) { notificationQueue.push({ message, type }); processNotificationQueue(); }
+    function processNotificationQueue() { if (isNotificationVisible || notificationQueue.length === 0) return; isNotificationVisible = true; const { message, type } = notificationQueue.shift(); const msgDiv = document.createElement('div'); msgDiv.className = `message ${type}`; msgDiv.textContent = message; messageArea.appendChild(msgDiv); setTimeout(() => msgDiv.classList.add('show'), 10); setTimeout(() => { msgDiv.classList.remove('show'); msgDiv.addEventListener('transitionend', () => { msgDiv.remove(); isNotificationVisible = false; processNotificationQueue(); }, { once: true }); }, 2000); }
+    const showLoading = (msg) => showMessage(msg, 'loading'); const showError = (msg) => showMessage(msg, 'error'); const showSuccess = (msg) => showMessage(msg, 'success');
+    function toggleTheme() { const isDark = document.body.classList.toggle('dark-mode'); localStorage.setItem('theme', isDark ? 'dark' : 'light'); updateThemeIcon(isDark); }
+    function updateThemeIcon(isDark) { const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`; const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`; themeIcon.innerHTML = isDark ? sunIcon : moonIcon; }
 
-    function selectColorForReplacement(index) {
-        selectedColorIndex = (selectedColorIndex === index) ? null : index;
-        updateSelectionVisuals();
-    }
-
-    function updateSelectionVisuals() {
-        document.querySelectorAll('.color-card').forEach((card, i) => {
-            card.classList.toggle('selected', i === selectedColorIndex);
+    // Function to get base64 representation of a file
+    function getBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
         });
-        if (selectedColorIndex !== null) {
-            clickInstruction.textContent = `✅ Selected a color. Click the image to replace it.`;
-        } else {
-            clickInstruction.textContent = `💡 Hover over the image to inspect colors. Click to add or replace.`;
-        }
     }
 
-    async function handleImageClick(event) {
-    const { actualX, actualY } = getScaledCoordinates(event);
-    if (actualX === null) return;
+    // Check for saved state on page load
+    async function restoreSession() {
+        const savedPalette = sessionStorage.getItem('currentPalette');
+        const savedImage = sessionStorage.getItem('uploadedImage');
+        const savedServerWidth = sessionStorage.getItem('serverImageWidth');
+        const savedServerHeight = sessionStorage.getItem('serverImageHeight');
 
-    console.log("Frontend coords:", actualX, actualY,
-        "Browser natural:", uploadedImage.naturalWidth, uploadedImage.naturalHeight,
-        "Server:", serverImageWidth, serverImageHeight);
+        if (savedPalette && savedImage) {
+            showLoading('Restoring your session...');
+            try {
+                // We must restore dimensions first for the canvas to be sized correctly
+                serverImageWidth = JSON.parse(savedServerWidth);
+                serverImageHeight = JSON.parse(savedServerHeight);
 
-    const payload = { x: actualX, y: actualY, exactMode: true };
+                const palette = JSON.parse(savedPalette);
+                await displayImage(savedImage);
+                currentPalette = palette;
+                displayPalette(palette);
 
-    if (selectedColorIndex !== null) {
-        await apiCall(`${API_BASE}/colors/${selectedColorIndex}`, 'PUT', payload, (result) => {
-            showSuccess(`Replaced color`);
-        }, 'replace');
-        selectedColorIndex = null;
-        updateSelectionVisuals();
-    } else {
-        await apiCall(`${API_BASE}/add-from-image`, 'POST', payload, (result) => {
-            showSuccess(`Added color ${result.addedColor.hex}`);
-        }, 'add');
-    }
-}
-
-    async function removeColor(event, index) {
-        event.stopPropagation();
-        if (selectedColorIndex === index) selectedColorIndex = null;
-        await apiCall(`${API_BASE}/colors/${index}`, 'DELETE', null, (result) => {
-            showSuccess(`Removed color ${result.removedColor.hex}`);
-        }, 'remove');
-    }
-
-    async function apiCall(url, method, body, successCallback, action) {
-        try {
-            const options = {
-                method,
-                headers: body ? { 'Content-Type': 'application/json' } : {},
-                body: body ? JSON.stringify(body) : null
-            };
-            const response = await fetch(url, options);
-            const result = await response.json();
-
-            if (result.success) {
-                displayPalette(result.palette);
-                currentPalette = result.palette;
-                if(successCallback) successCallback(result);
-            } else {
-                showError(result.message || `Failed to ${action} color`);
+                uploadSection.style.display = 'none';
+                mainContent.style.display = 'grid';
+                showSuccess('Your session has been restored!');
+            } catch(e) {
+                showError('Could not restore session.');
+                sessionStorage.clear();
             }
-        } catch (error) {
-            showError(`Error during ${action} action: ${error.message}`);
         }
     }
-
-    function handleImageHover(event) {
-        if (!isMouseOverImage) {
-            hideColorPreview();
-            return;
-        }
-
-        const { actualX, actualY } = getScaledCoordinates(event);
-
-        if (actualX === null) {
-            hideColorPreview();
-            return;
-        }
-
-        showColorPreview();
-
-        const zoom = 10;
-        const pickerSize = pickerCanvas.width;
-        const sourceSize = pickerSize / zoom;
-
-        pickerCtx.imageSmoothingEnabled = false;
-        pickerCtx.clearRect(0, 0, pickerSize, pickerSize);
-        pickerCtx.drawImage(
-            imageCanvas,
-            actualX - sourceSize / 2,
-            actualY - sourceSize / 2,
-            sourceSize,
-            sourceSize,
-            0,
-            0,
-            pickerSize,
-            pickerSize
-        );
-
-        pickerCtx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-        pickerCtx.lineWidth = 1;
-        const center = pickerSize / 2;
-        pickerCtx.beginPath();
-        pickerCtx.moveTo(center, 0);
-        pickerCtx.lineTo(center, pickerSize);
-        pickerCtx.moveTo(0, center);
-        pickerCtx.lineTo(pickerSize, center);
-        pickerCtx.stroke();
-
-        colorPickerPreview.style.left = `${event.clientX}px`;
-        colorPickerPreview.style.top = `${event.clientY}px`;
-    }
-
-    function showColorPreview() {
-        colorPickerPreview.style.display = 'block';
-    }
-
-    function hideColorPreview() {
-        colorPickerPreview.style.display = 'none';
-    }
-
-    /**
-     * [DEFINITIVE FIX] Calculates the precise pixel coordinates on the original image,
-     * accounting for CSS scaling (`object-fit: contain`) and letterboxing.
-     */
-  function getScaledCoordinates(event) {
-    const img = uploadedImage;
-    const rect = img.getBoundingClientRect();
-
-    // Use the image dimensions from the server for all calculations.
-    const imageWidth = serverImageWidth || img.naturalWidth;
-    const imageHeight = serverImageHeight || img.naturalHeight;
-
-    // Aspect ratios
-    const imgRatio = imageWidth / imageHeight;
-    const elemRatio = img.clientWidth / img.clientHeight;
-
-    let renderedHeight, renderedWidth;
-    if (imgRatio > elemRatio) {
-        renderedWidth = img.clientWidth;
-        renderedHeight = renderedWidth / imgRatio;
-    } else {
-        renderedHeight = img.clientHeight;
-        renderedWidth = renderedHeight * imgRatio;
-    }
-
-    // Letterboxing offsets
-    const offsetX = (img.clientWidth - renderedWidth) / 2;
-    const offsetY = (img.clientHeight - renderedHeight) / 2;
-
-    // Mouse relative to rendered image
-    const x = event.clientX - rect.left - offsetX;
-    const y = event.clientY - rect.top - offsetY;
-
-    // Outside image → ignore
-    if (x < 0 || y < 0 || x > renderedWidth || y > renderedHeight) {
-        return { actualX: null, actualY: null };
-    }
-
-    // Scale factors using server dimensions
-    const scaleX = imageWidth / renderedWidth;
-    const scaleY = imageHeight / renderedHeight;
-
-    // Convert to image coords and clamp to server dimensions
-    let actualX = Math.floor(x * scaleX);
-    let actualY = Math.floor(y * scaleY);
-
-    actualX = Math.max(0, Math.min(imageWidth - 1, actualX));
-    actualY = Math.max(0, Math.min(imageHeight - 1, actualY));
-
-
-    return { actualX, actualY };
-}
-
-    function copyToClipboard(event, text) {
-        event.stopPropagation();
-        navigator.clipboard.writeText(text).then(() => {
-            showSuccess(`Copied ${text} to clipboard!`);
-        }, () => {
-            showError('Failed to copy text.');
-        });
-    }
-
-    const notificationQueue = [];
-    let isNotificationVisible = false;
-
-    function showMessage(message, type) {
-        notificationQueue.push({ message, type });
-        processNotificationQueue();
-    }
-
-    function processNotificationQueue() {
-        if (isNotificationVisible || notificationQueue.length === 0) return;
-
-        isNotificationVisible = true;
-        const { message, type } = notificationQueue.shift();
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `message ${type}`;
-        msgDiv.textContent = message;
-        messageArea.appendChild(msgDiv);
-
-        setTimeout(() => msgDiv.classList.add('show'), 10);
-
-        setTimeout(() => {
-            msgDiv.classList.remove('show');
-            msgDiv.addEventListener('transitionend', () => {
-                msgDiv.remove();
-                isNotificationVisible = false;
-                processNotificationQueue();
-            }, { once: true });
-        }, 2000);
-    }
-
-    const showLoading = (msg) => showMessage(msg, 'loading');
-    const showError = (msg) => showMessage(msg, 'error');
-    const showSuccess = (msg) => showMessage(msg, 'success');
-
-    document.addEventListener('DOMContentLoaded', initializeEventListeners);
 </script>
 </body>
 </html>
-
