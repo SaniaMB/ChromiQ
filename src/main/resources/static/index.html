@@ -681,6 +681,7 @@
     }
 
    async function uploadImage(file) {
+    // Reset any palette-only mode classes
     mainContent.classList.remove('palette-only');
     uploadSection.classList.remove('compact');
 
@@ -716,23 +717,30 @@
         const result = await response.json();
 
         if (result.success) {
+            // Update loading message to show progress
+            showLoading('Processing image and generating palette...');
+
             serverImageWidth = result.imageWidth;
             serverImageHeight = result.imageHeight;
 
-            // ✨ NEW: Use Object URL instead of base64 + storage
+            // Create Object URL for the image
             const imageUrl = URL.createObjectURL(file);
 
             // Only store the palette data (much smaller)
             sessionStorage.setItem('currentPalette', JSON.stringify(result.palette));
 
+            // Display image and palette
             await displayImage(imageUrl);
             currentPalette = result.palette;
             displayPalette(currentPalette);
 
-            showSuccess(`Successfully extracted ${result.palette.size} colors`);
+            // Update layout
             uploadSection.style.display = 'none';
             heroSection.style.display = 'none';
             mainContent.style.display = 'grid';
+
+            // ✨ NOW show success - everything is complete!
+            showSuccess(`Successfully extracted ${result.palette.size} colors`);
 
         } else {
             showError(result.message || 'Failed to upload image');
