@@ -718,16 +718,16 @@
 
             const result = await response.json();
 
-            if (result.success) {
-                // The server has responded, now render the results
+                        if (result.success) {
                 serverImageWidth = result.imageWidth;
                 serverImageHeight = result.imageHeight;
 
                 const imageUrl = URL.createObjectURL(file);
                 sessionStorage.setItem('currentPalette', JSON.stringify(result.palette));
 
-                // Await the image display before showing the palette
+                // Display the uploaded image
                 await displayImage(imageUrl);
+
                 currentPalette = result.palette;
                 displayPalette(currentPalette);
 
@@ -735,15 +735,13 @@
                 heroSection.style.display = 'none';
                 mainContent.style.display = 'grid';
 
-                // --- NEW, MORE RELIABLE FIX ---
-                // By using setTimeout with a delay of 0, we push this code to the end of the
-                // execution queue, which runs *after* the browser has had a chance to paint the palette.
-                setTimeout(() => {
-                    clearMessages(); // First, clear the "Uploading..." message
-                    showSuccess(`Successfully extracted ${result.palette.size} colors`); // Then, show the success message
-                }, 0);
+                // Wait until the next repaint to clear loading message
+                await new Promise(requestAnimationFrame);
 
-            } else {
+                clearMessages(); // Clear "Uploading..." after the palette is rendered
+                showSuccess(`Successfully extracted ${result.palette.size} colors`);
+            }
+             else {
                 showError(result.message || 'Failed to upload image');
                 resetApp(); // This will also clear the loading message
             }
