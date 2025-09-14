@@ -652,46 +652,66 @@
         sessionStorage.removeItem('uploadedImage');
     }
 
-    // --- CORE LOGIC ---
-    async function uploadImage(file) {
-        showLoading('Uploading image and extracting colors...');
-        // Don't call resetApp here as it clears session storage prematurely.
-        // Clear state manually instead.
-        mainContent.style.display = 'none';
-        paletteHistory = [];
-        updateUndoButton();
+   async function uploadImage(file) {
+    showLoading('Uploading image and extracting colors...');
+    mainContent.style.display = 'none';
+    paletteHistory = [];
+    updateUndoButton();
 
-        try {
-            const formData = new FormData();
-            formData.append('image', file);
-            const response = await fetch(`${API_BASE}/upload`, { method: 'POST', body: formData });
-            const result = await response.json();
-            if (result.success) {
-                serverImageWidth = result.imageWidth;
-                serverImageHeight = result.imageHeight;
+    try {
+        const formData = new FormData();
+        formData.append('image', file);
 
-                const imageUrl = await getBase64(file);
-                sessionStorage.setItem('uploadedImage', imageUrl);
-                sessionStorage.setItem('currentPalette', JSON.stringify(result.palette));
+        const response = await fetch(`${API_BASE}/upload`, {
+            method: 'POST',
+            body: formData
+        });
 
-                await displayImage(imageUrl);
-                currentPalette = result.palette;
-                displayPalette(currentPalette);
-
-                showSuccess(`Successfully extracted ${result.palette.size} colors`);
-                uploadSection.style.display = 'none';
-                heroSection.style.display = 'none';
-                mainContent.style.display = 'grid';
-
+        if (!response.ok) {
+            if (response.status === 413) {
+                throw new Error('Image too large. Please choose a smaller image (max 10MB).');
+            } else if (response.status === 400) {
+                throw new Error('Invalid image file. Please choose a valid image.');
             } else {
-                showError(result.message || 'Failed to upload image');
-                resetApp();
+                throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
             }
-        } catch (error) {
-            showError('Error uploading image: ' + error.message);
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Server returned an unexpected response format.');
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            serverImageWidth = result.imageWidth;
+            serverImageHeight = result.imageHeight;
+
+            // ✨ NEW: Use Object URL instead of base64 + storage
+            const imageUrl = URL.createObjectURL(file);
+
+            // Only store the palette data (much smaller)
+            sessionStorage.setItem('currentPalette', JSON.stringify(result.palette));
+
+            await displayImage(imageUrl);
+            currentPalette = result.palette;
+            displayPalette(currentPalette);
+
+            showSuccess(`Successfully extracted ${result.palette.size} colors`);
+            uploadSection.style.display = 'none';
+            heroSection.style.display = 'none';
+            mainContent.style.display = 'grid';
+
+        } else {
+            showError(result.message || 'Failed to upload image');
             resetApp();
         }
+    } catch (error) {
+        showError('Error uploading image: ' + error.message);
+        resetApp();
     }
+}
 
     async function handleImageClick(event) {
         const { actualX, actualY } = getScaledCoordinates(event);
@@ -744,31 +764,38 @@
     }
 
     // --- DISPLAY & UI ---
-    // ✅ CORRECTED: This function now correctly handles both a File object and a base64 string
     function displayImage(imageSource) {
-        return new Promise((resolve) => {
-            const isBase64 = typeof imageSource === 'string' && imageSource.startsWith('data:image');
+    return new Promise((resolve) => {
+        const isBase64 = typeof imageSource === 'string' && imageSource.startsWith('data:image');
 
-            const processImage = (src) => {
-                uploadedImage.src = src;
-                uploadedImage.onload = () => {
-                    imageCanvas.width = serverImageWidth || uploadedImage.naturalWidth;
-                    imageCanvas.height = serverImageHeight || uploadedImage.naturalHeight;
-                    canvasCtx.drawImage(uploadedImage, 0, 0, imageCanvas.width, imageCanvas.height);
-                    imageDisplay.style.display = 'block';
-                    resolve();
-                };
+        const processImage = (src) => {
+            uploadedImage.src = src;
+            uploadedImage.onload = () => {
+                imageCanvas.width = serverImageWidth || uploadedImage.naturalWidth;
+                imageCanvas.height = serverImageHeight || uploadedImage.naturalHeight;
+                canvasCtx.drawImage(uploadedImage, 0, 0, imageCanvas.width, imageCanvas.height);
+                imageDisplay.style.display = 'block';
+                resolve();
             };
+        };
 
-            if (isBase64) {
-                processImage(imageSource);
-            } else { // It's a File object
-                const reader = new FileReader();
-                reader.onload = (e) => processImage(e.target.result);
-                reader.readAsDataURL(imageSource);
-            }
-        });
-    }
+        if (isBase64) {
+            processImage(imageSource);
+        } else if (typeof imageSource === 'string') {
+            // ✅ NEW: Handle Object URLs (strings that don't start with 'data:image')
+            processImage(imageSource);
+        } else if (imageSource instanceof File || imageSource instanceof Blob) {
+            // ✅ NEW: Only use FileReader for actual File/Blob objects
+            const reader = new FileReader();
+            reader.onload = (e) => processImage(e.target.result);
+            reader.readAsDataURL(imageSource);
+        } else {
+            // ✅ NEW: Handle unexpected cases
+            console.error('displayImage received unexpected type:', typeof imageSource, imageSource);
+            reject(new Error('Invalid image source type'));
+        }
+    });
+}
 
     function displayPalette(palette) {
         paletteGrid.innerHTML = '';
@@ -806,40 +833,51 @@
     function updateThemeIcon(isDark) { const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`; const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`; themeIcon.innerHTML = isDark ? sunIcon : moonIcon; }
 
     // Function to get base64 representation of a file
-    function getBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
-        });
-    }
+    // Updated getBase64 with debugging
+        function getBase64(file) {
+            // Debug: Log what we received
+            console.log('getBase64 called with:', file);
+            console.log('Type:', typeof file);
+            console.log('Is File?', file instanceof File);
+            console.log('Is Blob?', file instanceof Blob);
+
+            return new Promise((resolve, reject) => {
+                // Add safety check
+                if (!file || !(file instanceof File || file instanceof Blob)) {
+                    console.error('❌ getBase64 error: Expected File or Blob, got:', file);
+                    reject(new Error(`getBase64 requires a File or Blob, but received: ${typeof file}`));
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    console.log('✅ getBase64 success: Generated base64 string');
+                    resolve(reader.result);
+                };
+                reader.onerror = error => {
+                    console.error('❌ FileReader error:', error);
+                    reject(error);
+                };
+            });
+        }
 
     // Check for saved state on page load
-    async function restoreSession() {
+       async function restoreSession() {
         const savedPalette = sessionStorage.getItem('currentPalette');
-        const savedImage = sessionStorage.getItem('uploadedImage');
-        const savedServerWidth = sessionStorage.getItem('serverImageWidth');
-        const savedServerHeight = sessionStorage.getItem('serverImageHeight');
+        // Remove image restoration - Object URLs don't persist across sessions
 
-        if (savedPalette && savedImage) {
-            showLoading('Restoring your session...');
+        if (savedPalette) {
             try {
-                // We must restore dimensions first for the canvas to be sized correctly
-                serverImageWidth = JSON.parse(savedServerWidth);
-                serverImageHeight = JSON.parse(savedServerHeight);
-
                 const palette = JSON.parse(savedPalette);
-                await displayImage(savedImage);
                 currentPalette = palette;
                 displayPalette(palette);
 
-                uploadSection.style.display = 'none';
-                heroSection.style.display = 'none';
-                mainContent.style.display = 'grid';
-                showSuccess('Your session has been restored!');
+                // Show palette but no image
+                paletteSection.style.display = 'block';
+                showSuccess('Your palette has been restored! Upload a new image to continue.');
             } catch(e) {
-                showError('Could not restore session.');
+                showError('Could not restore palette.');
                 sessionStorage.clear();
             }
         }
