@@ -735,15 +735,13 @@
                 heroSection.style.display = 'none';
                 mainContent.style.display = 'grid';
 
-                // --- FIX: Clear the loading message ONLY after everything is rendered ---
-                // Use a minimal timeout to allow the browser to paint before clearing the message
+                // --- NEW, MORE RELIABLE FIX ---
+                // By using setTimeout with a delay of 0, we push this code to the end of the
+                // execution queue, which runs *after* the browser has had a chance to paint the palette.
                 setTimeout(() => {
-                    clearMessages();
-                    // Show success message shortly after
-                    setTimeout(() => {
-                        showSuccess(`Successfully extracted ${result.palette.size} colors`);
-                    }, 100);
-                }, 50); // A small delay like 50ms should be enough for rendering
+                    clearMessages(); // First, clear the "Uploading..." message
+                    showSuccess(`Successfully extracted ${result.palette.size} colors`); // Then, show the success message
+                }, 0);
 
             } else {
                 showError(result.message || 'Failed to upload image');
