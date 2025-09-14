@@ -736,10 +736,14 @@
                 mainContent.style.display = 'grid';
 
                 // --- FIX: Clear the loading message ONLY after everything is rendered ---
-                clearMessages();
+                // Use a minimal timeout to allow the browser to paint before clearing the message
                 setTimeout(() => {
-                    showSuccess(`Successfully extracted ${result.palette.size} colors`);
-                }, 100);
+                    clearMessages();
+                    // Show success message shortly after
+                    setTimeout(() => {
+                        showSuccess(`Successfully extracted ${result.palette.size} colors`);
+                    }, 100);
+                }, 50); // A small delay like 50ms should be enough for rendering
 
             } else {
                 showError(result.message || 'Failed to upload image');
