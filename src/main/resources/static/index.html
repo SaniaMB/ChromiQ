@@ -680,7 +680,7 @@
         sessionStorage.removeItem('uploadedImage');
     }
 
-   async function uploadImage(file) {
+  async function uploadImage(file) {
     // Reset any palette-only mode classes
     mainContent.classList.remove('palette-only');
     uploadSection.classList.remove('compact');
@@ -717,30 +717,27 @@
         const result = await response.json();
 
         if (result.success) {
-            // Update loading message to show progress
             showLoading('Processing image and generating palette...');
 
             serverImageWidth = result.imageWidth;
             serverImageHeight = result.imageHeight;
 
-            // Create Object URL for the image
             const imageUrl = URL.createObjectURL(file);
-
-            // Only store the palette data (much smaller)
             sessionStorage.setItem('currentPalette', JSON.stringify(result.palette));
 
-            // Display image and palette
             await displayImage(imageUrl);
             currentPalette = result.palette;
             displayPalette(currentPalette);
 
-            // Update layout
             uploadSection.style.display = 'none';
             heroSection.style.display = 'none';
             mainContent.style.display = 'grid';
 
-            // ✨ NOW show success - everything is complete!
-            showSuccess(`Successfully extracted ${result.palette.size} colors`);
+            // ✨ Clear loading message, then show success
+            clearMessages();
+            setTimeout(() => {
+                showSuccess(`Successfully extracted ${result.palette.size} colors`);
+            }, 100); // Small delay to ensure clearing is complete
 
         } else {
             showError(result.message || 'Failed to upload image');
@@ -751,6 +748,17 @@
         resetApp();
     }
 }
+
+    function clearMessages() {
+        // Remove all existing messages immediately
+        const existingMessages = messageArea.querySelectorAll('.message');
+        existingMessages.forEach(msg => {
+            msg.remove();
+        });
+        isNotificationVisible = false;
+        // Clear the queue to prevent old messages from showing
+        notificationQueue.length = 0;
+    }
 
     async function handleImageClick(event) {
         const { actualX, actualY } = getScaledCoordinates(event);
