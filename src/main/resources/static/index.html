@@ -680,73 +680,76 @@
         sessionStorage.removeItem('uploadedImage');
     }
 
- async function uploadImage(file) {
-    // Reset any palette-only mode classes
-    mainContent.classList.remove('palette-only');
-    uploadSection.classList.remove('compact');
+     async function uploadImage(file) {
+        // Reset any palette-only mode classes
+        mainContent.classList.remove('palette-only');
+        uploadSection.classList.remove('compact');
 
-    showLoading('Uploading image and extracting colors...');
-    mainContent.style.display = 'none';
-    paletteHistory = [];
-    updateUndoButton();
+        // --- FIX: Show a single, persistent loading message ---
+        showLoading('Uploading and processing image...');
+        mainContent.style.display = 'none';
+        paletteHistory = [];
+        updateUndoButton();
 
-    try {
-        const formData = new FormData();
-        formData.append('image', file);
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
 
-        const response = await fetch(`${API_BASE}/upload`, {
-            method: 'POST',
-            body: formData
-        });
+            const response = await fetch(`${API_BASE}/upload`, {
+                method: 'POST',
+                body: formData
+            });
 
-        if (!response.ok) {
-            if (response.status === 413) {
-                throw new Error('Image too large. Please choose a smaller image (max 10MB).');
-            } else if (response.status === 400) {
-                throw new Error('Invalid image file. Please choose a valid image.');
-            } else {
-                throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+            if (!response.ok) {
+                // ... (error handling code remains the same)
+                if (response.status === 413) {
+                    throw new Error('Image too large. Please choose a smaller image (max 10MB).');
+                } else if (response.status === 400) {
+                    throw new Error('Invalid image file. Please choose a valid image.');
+                } else {
+                    throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+                }
             }
+
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned an unexpected response format.');
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                // The server has responded, now render the results
+                serverImageWidth = result.imageWidth;
+                serverImageHeight = result.imageHeight;
+
+                const imageUrl = URL.createObjectURL(file);
+                sessionStorage.setItem('currentPalette', JSON.stringify(result.palette));
+
+                // Await the image display before showing the palette
+                await displayImage(imageUrl);
+                currentPalette = result.palette;
+                displayPalette(currentPalette);
+
+                uploadSection.style.display = 'none';
+                heroSection.style.display = 'none';
+                mainContent.style.display = 'grid';
+
+                // --- FIX: Clear the loading message ONLY after everything is rendered ---
+                clearMessages();
+                setTimeout(() => {
+                    showSuccess(`Successfully extracted ${result.palette.size} colors`);
+                }, 100);
+
+            } else {
+                showError(result.message || 'Failed to upload image');
+                resetApp(); // This will also clear the loading message
+            }
+        } catch (error) {
+            showError('Error uploading image: ' + error.message);
+            resetApp(); // This will also clear the loading message
         }
-
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            throw new Error('Server returned an unexpected response format.');
-        }
-
-        const result = await response.json();
-
-        if (result.success) {
-            // DON'T add another loading message - keep the original one running
-            serverImageWidth = result.imageWidth;
-            serverImageHeight = result.imageHeight;
-
-            const imageUrl = URL.createObjectURL(file);
-            sessionStorage.setItem('currentPalette', JSON.stringify(result.palette));
-
-            await displayImage(imageUrl);
-            currentPalette = result.palette;
-            displayPalette(currentPalette);
-
-            uploadSection.style.display = 'none';
-            heroSection.style.display = 'none';
-            mainContent.style.display = 'grid';
-
-            // ✨ NOW clear the original loading message and show success
-            clearMessages();
-            setTimeout(() => {
-                showSuccess(`Successfully extracted ${result.palette.size} colors`);
-            }, 100);
-
-        } else {
-            showError(result.message || 'Failed to upload image');
-            resetApp();
-        }
-    } catch (error) {
-        showError('Error uploading image: ' + error.message);
-        resetApp();
     }
-}
 
     function clearMessages() {
         // Remove all existing messages immediately

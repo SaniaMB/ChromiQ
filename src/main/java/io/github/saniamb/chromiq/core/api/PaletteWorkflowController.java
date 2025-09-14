@@ -10,8 +10,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.util.StringUtils;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,19 +42,32 @@ public class PaletteWorkflowController {
     @PostMapping("/upload")
     public ResponseEntity<Map<String, Object>> uploadAndGeneratePalette(@RequestParam("image") MultipartFile file) {
         Map<String, Object> response = new HashMap<>();
+
+        // Get the original file's extension to use in the error message
+        String fileExtension = StringUtils.getFilenameExtension(file.getOriginalFilename());
+
         try {
             if (file.isEmpty()) {
                 response.put("success", false);
-                response.put("message", "Please select an image file to upload");
+                response.put("message", "Please select an image file to upload.");
                 return ResponseEntity.badRequest().body(response);
             }
 
-            Logger.info("Uploaded file: " + file.getOriginalFilename()
-                    + " | Type: " + file.getContentType()
-                    + " | Size: " + file.getSize());
+            byte[] imageBytes = file.getBytes();
+            java.io.InputStream inputStream = new java.io.ByteArrayInputStream(imageBytes);
 
             Logger.info("Starting palette workflow for: " + file.getOriginalFilename());
-            BufferedImage currentImage = imageInputHandler.loadFromStream(file.getInputStream());
+            BufferedImage currentImage = imageInputHandler.loadFromStream(inputStream);
+
+            // --- START OF THE FIX ---
+            // If the image could not be read, create a specific error message.
+            if (currentImage == null) {
+                String errorMessage = "The image format '." + fileExtension + "' is not supported. Please try a different format like JPEG, PNG, or GIF.";
+                // We throw an exception with our custom message.
+                throw new IOException(errorMessage);
+            }
+            // --- END OF THE FIX ---
+
             userSessionManager.setCurrentImage(currentImage);
             String currentImageName = file.getOriginalFilename();
             Logger.info("Image processed: " + imageInputHandler.getImageInfo(currentImage));
@@ -72,10 +87,19 @@ public class PaletteWorkflowController {
 
             Logger.info("Initial palette generated: " + currentPalette.getPaletteSummary());
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Logger.info("Error in palette workflow: " + e.getMessage());
+
+        } catch (IOException e) {
+            // This block now catches our custom error and sends it to the frontend.
+            Logger.error("Error in palette workflow: " + e.getMessage());
             response.put("success", false);
-            response.put("message", "Failed to process image and generate palette: " + e.getMessage());
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+
+        } catch (Exception e) {
+            // General catch block for other server errors.
+            Logger.error("Unexpected error in palette workflow: " + e.getMessage());
+            response.put("success", false);
+            response.put("message", "An unexpected server error occurred. Please try again.");
             return ResponseEntity.internalServerError().body(response);
         }
     }
