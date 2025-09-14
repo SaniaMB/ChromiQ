@@ -680,7 +680,7 @@
         sessionStorage.removeItem('uploadedImage');
     }
 
-  async function uploadImage(file) {
+ async function uploadImage(file) {
     // Reset any palette-only mode classes
     mainContent.classList.remove('palette-only');
     uploadSection.classList.remove('compact');
@@ -717,8 +717,7 @@
         const result = await response.json();
 
         if (result.success) {
-            showLoading('Processing image and generating palette...');
-
+            // DON'T add another loading message - keep the original one running
             serverImageWidth = result.imageWidth;
             serverImageHeight = result.imageHeight;
 
@@ -733,11 +732,11 @@
             heroSection.style.display = 'none';
             mainContent.style.display = 'grid';
 
-            // ✨ Clear loading message, then show success
+            // ✨ NOW clear the original loading message and show success
             clearMessages();
             setTimeout(() => {
                 showSuccess(`Successfully extracted ${result.palette.size} colors`);
-            }, 100); // Small delay to ensure clearing is complete
+            }, 100);
 
         } else {
             showError(result.message || 'Failed to upload image');

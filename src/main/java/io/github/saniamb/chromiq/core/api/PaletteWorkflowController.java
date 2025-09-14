@@ -25,15 +25,17 @@ public class PaletteWorkflowController {
     private final ImageInputHandler imageInputHandler;
     private final DominantColorExtractor dominantColorExtractor;
     private final RegionalColorExtractor regionalColorExtractor;
+    private final UserSessionManager userSessionManager;
+
 
     @Autowired
-    private UserSessionManager userSessionManager;
-
-    public PaletteWorkflowController() {
+    public PaletteWorkflowController(UserSessionManager userSessionManager) {
         this.imageInputHandler = new ImageInputHandler();
         this.dominantColorExtractor = new DominantColorExtractor();
         this.regionalColorExtractor = new RegionalColorExtractor();
+        this.userSessionManager = userSessionManager;
     }
+
 
     @PostMapping("/upload")
     public ResponseEntity<Map<String, Object>> uploadAndGeneratePalette(@RequestParam("image") MultipartFile file) {
@@ -44,6 +46,10 @@ public class PaletteWorkflowController {
                 response.put("message", "Please select an image file to upload");
                 return ResponseEntity.badRequest().body(response);
             }
+
+            Logger.info("Uploaded file: " + file.getOriginalFilename()
+                    + " | Type: " + file.getContentType()
+                    + " | Size: " + file.getSize());
 
             Logger.info("Starting palette workflow for: " + file.getOriginalFilename());
             BufferedImage currentImage = imageInputHandler.loadFromStream(file.getInputStream());

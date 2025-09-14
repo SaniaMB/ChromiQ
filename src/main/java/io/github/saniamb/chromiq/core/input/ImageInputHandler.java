@@ -5,6 +5,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,6 +31,15 @@ import static java.awt.RenderingHints.KEY_INTERPOLATION;
  */
 public class ImageInputHandler {
 
+    static {
+        javax.imageio.spi.IIORegistry registry = javax.imageio.spi.IIORegistry.getDefaultInstance();
+        registry.registerServiceProvider(new com.twelvemonkeys.imageio.plugins.jpeg.JPEGImageReaderSpi());
+        registry.registerServiceProvider(new com.twelvemonkeys.imageio.plugins.bmp.BMPImageReaderSpi());
+        registry.registerServiceProvider(new com.twelvemonkeys.imageio.plugins.psd.PSDImageReaderSpi());
+        registry.registerServiceProvider(new com.twelvemonkeys.imageio.plugins.tiff.TIFFImageReaderSpi());
+        System.out.println("✅ TwelveMonkeys readers registered: JPEG, BMP, PSD, TIFF");
+    }
+
     // Maximum allowed dimensions to prevent memory issues for very large images
     private final int MAX_WIDTH = 1920;
     private final int MAX_HEIGHT = 1080;
@@ -51,6 +61,8 @@ public class ImageInputHandler {
         if(!imageFile.exists()){
             throw new IOException("Image file does not exist: "+ filePath);
         }
+
+        Logger.info("Available formats: " + String.join(", ", ImageIO.getReaderFormatNames()));
 
         // Load the image from disk
         BufferedImage image = ImageIO.read(imageFile);
@@ -74,21 +86,37 @@ public class ImageInputHandler {
      * @throws IOException if stream is null, unsupported, or corrupted
      */
     public BufferedImage loadFromStream(InputStream inputStream) throws IOException {
-        if(inputStream == null){
+        if (inputStream == null) {
             throw new IllegalArgumentException("InputStream cannot be null or empty");
         }
 
-        // Load the image from stream
-        BufferedImage image = ImageIO.read(inputStream);
+        // Wrap in BufferedInputStream to support mark/reset
+        BufferedInputStream bis = new BufferedInputStream(inputStream);
+        bis.mark(Integer.MAX_VALUE); // mark the beginning
+
+        Logger.info("Available formats: " + String.join(", ", ImageIO.getReaderFormatNames()));
+
+        // Try ImageIO.read directly first
+        BufferedImage image = ImageIO.read(bis);
+        if (image == null) {
+            // Reset and try ImageInputStream (more reliable with TwelveMonkeys)
+            bis.reset();
+            try (javax.imageio.stream.ImageInputStream iis = ImageIO.createImageInputStream(bis)) {
+                image = ImageIO.read(iis);
+            }
+        }
+
         if (image == null) {
             throw new IOException("Unsupported image format or corrupted input stream");
         }
 
-        Logger.info("Loaded image from InputStream");
+        Logger.info("Loaded image from InputStream: " + image.getWidth() + "x" + image.getHeight());
 
         // Process image: resize if too large, ensure ARGB
         return processImage(image);
     }
+
+
 
     /**
      * Prepares a BufferedImage for downstream color analysis.
