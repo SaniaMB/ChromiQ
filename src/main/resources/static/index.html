@@ -549,6 +549,22 @@
             }
         }
 
+    /* Layout for palette-only mode (when image disappears after refresh) */
+    .main-content.palette-only {
+        grid-template-columns: 1fr !important;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .upload-section.compact {
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .upload-section.compact .upload-text {
+        font-size: 1rem;
+    }
+
     </style>
 </head>
 <body>
@@ -634,6 +650,18 @@
     }
 
     function resetApp() {
+        mainContent.classList.remove('palette-only');
+        uploadSection.classList.remove('compact');
+
+        mainContent.style.display = 'none';
+        imageDisplay.style.display = 'none';
+        paletteSection.style.display = 'none';
+        uploadSection.style.display = 'block';
+        heroSection.style.display = 'block';
+
+        // Reset upload text to original
+        document.querySelector('.upload-text').textContent = '📸 Upload an image to extract colors';
+        document.querySelector('.upload-hint').textContent = 'Click here or drag & drop an image file';
         mainContent.style.display = 'none';
         imageDisplay.style.display = 'none';
         paletteSection.style.display = 'none';
@@ -653,6 +681,9 @@
     }
 
    async function uploadImage(file) {
+    mainContent.classList.remove('palette-only');
+    uploadSection.classList.remove('compact');
+
     showLoading('Uploading image and extracting colors...');
     mainContent.style.display = 'none';
     paletteHistory = [];
@@ -863,25 +894,38 @@
         }
 
     // Check for saved state on page load
-       async function restoreSession() {
-        const savedPalette = sessionStorage.getItem('currentPalette');
-        // Remove image restoration - Object URLs don't persist across sessions
+      async function restoreSession() {
+    const savedPalette = sessionStorage.getItem('currentPalette');
 
-        if (savedPalette) {
-            try {
-                const palette = JSON.parse(savedPalette);
-                currentPalette = palette;
-                displayPalette(palette);
+    if (savedPalette) {
+        try {
+            showLoading('Restoring your palette...');
 
-                // Show palette but no image
-                paletteSection.style.display = 'block';
-                showSuccess('Your palette has been restored! Upload a new image to continue.');
-            } catch(e) {
-                showError('Could not restore palette.');
-                sessionStorage.clear();
-            }
+            const palette = JSON.parse(savedPalette);
+            currentPalette = palette;
+            displayPalette(palette);
+
+            // Set up palette-only layout
+            mainContent.classList.add('palette-only');
+            mainContent.style.display = 'grid';
+
+            uploadSection.classList.add('compact');
+            uploadSection.style.display = 'block';
+
+            paletteSection.style.display = 'block';
+            heroSection.style.display = 'none';
+
+            // Update upload text for this mode
+            document.querySelector('.upload-text').textContent = '📸 Upload a new image';
+            document.querySelector('.upload-hint').textContent = 'Your palette is saved - add a new image to continue';
+
+            showSuccess(`Restored palette with ${palette.size} colors!`);
+        } catch(e) {
+            showError('Could not restore palette.');
+            sessionStorage.clear();
         }
     }
+}
 </script>
 </body>
 </html>
