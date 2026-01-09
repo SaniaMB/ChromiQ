@@ -78,6 +78,16 @@ mvn spring-boot:run
 ```
 The application will then be available at http://localhost:8080.
 
+## 🔮 Future Enhancements
+
+- Context-aware palette recommendation after initial color extraction
+- Ability for users to lock selected colors and specify a maximum palette size
+- Intelligent generation of complementary colors that respect locked constraints
+- Palette refinement based on perceptual color spaces (e.g., LAB / HSL) to ensure visual harmony
+- Iterative regeneration of unlocked colors while preserving user-selected ones
+- Practical use cases such as interior design, enabling users to upload room images,
+  retain existing furniture or wall colors, and receive cohesive palette suggestions
+
 **📄 License** : 
 
 This project is licensed under the MIT License - see the LICENSE file for details.
