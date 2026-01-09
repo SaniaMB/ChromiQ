@@ -78,5 +78,5 @@ mvn spring-boot:run
 ```
 The application will then be available at http://localhost:8080.
 
-📄 License
+**📄 License**
 This project is licensed under the MIT License - see the LICENSE file for details.
